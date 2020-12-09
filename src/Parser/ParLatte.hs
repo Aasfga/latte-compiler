@@ -4,10 +4,10 @@
 {-# OPTIONS_GHC -XPartialTypeSignatures #-}
 #endif
 {-# OPTIONS_GHC -fno-warn-incomplete-patterns -fno-warn-overlapping-patterns #-}
-module Grammar.ParLatte where
-import Grammar.AbsLatte as AbsLatte
-import Grammar.LexLatte
-import Grammar.ErrM
+module Parser.ParLatte where
+import Parser.AbsLatte as AbsLatte
+import Parser.LexLatte
+import Parser.ErrM
 import qualified Data.Array as Happy_Data_Array
 import qualified Data.Bits as Bits
 import qualified GHC.Exts as Happy_GHC_Exts

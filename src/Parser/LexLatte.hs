@@ -4,7 +4,7 @@
 
 {-# OPTIONS -fno-warn-incomplete-patterns #-}
 {-# OPTIONS_GHC -w #-}
-module Grammar.LexLatte where
+module Parser.LexLatte where
 
 
 
