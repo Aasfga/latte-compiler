@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 485165de7c82bfe5ca6c3e4ae9f6478c0a9e3e9ba271b67ddaf058833e80170b
+-- hash: 17b0f686c74e9fc1917d8ad3f86403473064cda0359d7a44c7e77a753b0dc6b0
 
 name:           latte
 version:        0.1.0.0
@@ -25,13 +25,14 @@ source-repository head
 
 library
   exposed-modules:
-      Grammar.AbsLatte
-      Grammar.ErrM
-      Grammar.LexLatte
-      Grammar.ParLatte
-      Grammar.PrintLatte
-      Grammar.SkelLatte
+      AbstractSyntax
       Lib
+      Parser.AbsLatte
+      Parser.ErrM
+      Parser.LexLatte
+      Parser.ParLatte
+      Parser.PrintLatte
+      Parser.SkelLatte
   other-modules:
       Paths_latte
   hs-source-dirs:
