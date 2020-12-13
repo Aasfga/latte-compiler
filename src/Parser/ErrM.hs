@@ -8,6 +8,7 @@ module Parser.ErrM where
 
 import Control.Monad (MonadPlus(..), liftM)
 import Control.Applicative (Applicative(..), Alternative(..))
+{-# ANN module "HLint: ignore" #-}
 
 data Err a = Ok a | Bad String
   deriving (Read, Show, Eq, Ord)

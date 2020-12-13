@@ -28,6 +28,7 @@ import GHC.Exts
 #else
 import GlaExts
 #endif
+{-# ANN module "HLint: ignore" #-}
 alex_tab_size :: Int
 alex_tab_size = 8
 alex_base :: AlexAddr

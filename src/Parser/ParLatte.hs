@@ -13,6 +13,7 @@ import qualified Data.Bits as Bits
 import qualified GHC.Exts as Happy_GHC_Exts
 import Control.Applicative(Applicative(..))
 import Control.Monad (ap)
+{-# ANN module "HLint: ignore" #-}
 
 -- parser produced by Happy Version 1.19.9
 

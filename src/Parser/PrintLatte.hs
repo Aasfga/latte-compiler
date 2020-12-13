@@ -12,7 +12,7 @@ module Parser.PrintLatte where
 
 import qualified Parser.AbsLatte as AbsLatte
 import Data.Char
-
+{-# ANN module "HLint: ignore" #-}
 -- | The top-level printing method.
 
 printTree :: Print a => a -> String
