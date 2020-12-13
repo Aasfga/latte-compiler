@@ -46,28 +46,28 @@ happyIn7 x = Happy_GHC_Exts.unsafeCoerce# x
 happyOut7 :: (HappyAbsSyn ) -> ((Program ()))
 happyOut7 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyOut7 #-}
-happyIn8 :: ((TopDef ())) -> (HappyAbsSyn )
+happyIn8 :: ((Function ())) -> (HappyAbsSyn )
 happyIn8 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyIn8 #-}
-happyOut8 :: (HappyAbsSyn ) -> ((TopDef ()))
+happyOut8 :: (HappyAbsSyn ) -> ((Function ()))
 happyOut8 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyOut8 #-}
-happyIn9 :: ([TopDef ()]) -> (HappyAbsSyn )
+happyIn9 :: ([Function ()]) -> (HappyAbsSyn )
 happyIn9 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyIn9 #-}
-happyOut9 :: (HappyAbsSyn ) -> ([TopDef ()])
+happyOut9 :: (HappyAbsSyn ) -> ([Function ()])
 happyOut9 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyOut9 #-}
-happyIn10 :: ((Arg ())) -> (HappyAbsSyn )
+happyIn10 :: ((Argument ())) -> (HappyAbsSyn )
 happyIn10 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyIn10 #-}
-happyOut10 :: (HappyAbsSyn ) -> ((Arg ()))
+happyOut10 :: (HappyAbsSyn ) -> ((Argument ()))
 happyOut10 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyOut10 #-}
-happyIn11 :: ([Arg ()]) -> (HappyAbsSyn )
+happyIn11 :: ([Argument ()]) -> (HappyAbsSyn )
 happyIn11 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyIn11 #-}
-happyOut11 :: (HappyAbsSyn ) -> ([Arg ()])
+happyOut11 :: (HappyAbsSyn ) -> ([Argument ()])
 happyOut11 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyOut11 #-}
 happyIn12 :: ((Block ())) -> (HappyAbsSyn )
@@ -76,28 +76,28 @@ happyIn12 x = Happy_GHC_Exts.unsafeCoerce# x
 happyOut12 :: (HappyAbsSyn ) -> ((Block ()))
 happyOut12 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyOut12 #-}
-happyIn13 :: ([Stmt ()]) -> (HappyAbsSyn )
+happyIn13 :: ([Statement ()]) -> (HappyAbsSyn )
 happyIn13 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyIn13 #-}
-happyOut13 :: (HappyAbsSyn ) -> ([Stmt ()])
+happyOut13 :: (HappyAbsSyn ) -> ([Statement ()])
 happyOut13 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyOut13 #-}
-happyIn14 :: ((Stmt ())) -> (HappyAbsSyn )
+happyIn14 :: ((Statement ())) -> (HappyAbsSyn )
 happyIn14 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyIn14 #-}
-happyOut14 :: (HappyAbsSyn ) -> ((Stmt ()))
+happyOut14 :: (HappyAbsSyn ) -> ((Statement ()))
 happyOut14 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyOut14 #-}
-happyIn15 :: ((Item ())) -> (HappyAbsSyn )
+happyIn15 :: ((Declaration ())) -> (HappyAbsSyn )
 happyIn15 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyIn15 #-}
-happyOut15 :: (HappyAbsSyn ) -> ((Item ()))
+happyOut15 :: (HappyAbsSyn ) -> ((Declaration ()))
 happyOut15 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyOut15 #-}
-happyIn16 :: ([Item ()]) -> (HappyAbsSyn )
+happyIn16 :: ([Declaration ()]) -> (HappyAbsSyn )
 happyIn16 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyIn16 #-}
-happyOut16 :: (HappyAbsSyn ) -> ([Item ()])
+happyOut16 :: (HappyAbsSyn ) -> ([Declaration ()])
 happyOut16 x = Happy_GHC_Exts.unsafeCoerce# x
 {-# INLINE happyOut16 #-}
 happyIn17 :: ((Type ())) -> (HappyAbsSyn )
@@ -192,7 +192,7 @@ happyExpList = HappyA# "\x00\x00\x00\x00\x00\x00\xa2\x02\x00\x00\x00\x00\x00\x00
 {-# NOINLINE happyExpListPerState #-}
 happyExpListPerState st =
     token_strs_expected
-  where token_strs = ["error","%dummy","%start_pProgram","Ident","Integer","String","Program","TopDef","ListTopDef","Arg","ListArg","Block","ListStmt","Stmt","Item","ListItem","Type","ListType","Expr6","Expr5","Expr4","Expr3","Expr2","Expr1","Expr","ListExpr","AddOp","MulOp","RelOp","'!'","'!='","'%'","'&&'","'('","')'","'*'","'+'","'++'","','","'-'","'--'","'/'","';'","'<'","'<='","'='","'=='","'>'","'>='","'boolean'","'else'","'false'","'if'","'int'","'return'","'string'","'true'","'void'","'while'","'{'","'||'","'}'","L_ident","L_integ","L_quoted","%eof"]
+  where token_strs = ["error","%dummy","%start_pProgram","Ident","Integer","String","Program","Function","ListFunction","Argument","ListArgument","Block","ListStatement","Statement","Declaration","ListDeclaration","Type","ListType","Expr6","Expr5","Expr4","Expr3","Expr2","Expr1","Expr","ListExpr","AddOp","MulOp","RelOp","'!'","'!='","'%'","'&&'","'('","')'","'*'","'+'","'++'","','","'-'","'--'","'/'","';'","'<'","'<='","'='","'=='","'>'","'>='","'boolean'","'else'","'false'","'if'","'int'","'return'","'string'","'true'","'void'","'while'","'{'","'||'","'}'","L_ident","L_integ","L_quoted","%eof"]
         bit_start = st * 66
         bit_end = (st + 1) * 66
         read_bit = readArrayBit happyExpList
@@ -338,7 +338,7 @@ happyReduction_5 (happy_x_6 `HappyStk`
 	case happyOut11 happy_x_4 of { happy_var_4 -> 
 	case happyOut12 happy_x_6 of { happy_var_6 -> 
 	happyIn8
-		 (AbsLatte.FnDef () happy_var_1 happy_var_2 happy_var_4 happy_var_6
+		 (AbsLatte.Function () happy_var_1 happy_var_2 happy_var_4 happy_var_6
 	) `HappyStk` happyRest}}}}
 
 happyReduce_6 = happySpecReduce_1  5# happyReduction_6
@@ -363,7 +363,7 @@ happyReduction_8 happy_x_2
 	 =  case happyOut17 happy_x_1 of { happy_var_1 -> 
 	case happyOut4 happy_x_2 of { happy_var_2 -> 
 	happyIn10
-		 (AbsLatte.Arg () happy_var_1 happy_var_2
+		 (AbsLatte.Argument () happy_var_1 happy_var_2
 	)}}
 
 happyReduce_9 = happySpecReduce_0  7# happyReduction_9
@@ -421,7 +421,7 @@ happyReduce_16 = happySpecReduce_1  10# happyReduction_16
 happyReduction_16 happy_x_1
 	 =  case happyOut12 happy_x_1 of { happy_var_1 -> 
 	happyIn14
-		 (AbsLatte.BStmt () happy_var_1
+		 (AbsLatte.InnerBlock () happy_var_1
 	)}
 
 happyReduce_17 = happySpecReduce_3  10# happyReduction_17
@@ -470,14 +470,14 @@ happyReduction_21 happy_x_3
 	happy_x_1
 	 =  case happyOut25 happy_x_2 of { happy_var_2 -> 
 	happyIn14
-		 (AbsLatte.Ret () happy_var_2
+		 (AbsLatte.Return () happy_var_2
 	)}
 
 happyReduce_22 = happySpecReduce_2  10# happyReduction_22
 happyReduction_22 happy_x_2
 	happy_x_1
 	 =  happyIn14
-		 (AbsLatte.VRet ()
+		 (AbsLatte.VoidReturn ()
 	)
 
 happyReduce_23 = happyReduce 5# 10# happyReduction_23
@@ -490,7 +490,7 @@ happyReduction_23 (happy_x_5 `HappyStk`
 	 = case happyOut25 happy_x_3 of { happy_var_3 -> 
 	case happyOut14 happy_x_5 of { happy_var_5 -> 
 	happyIn14
-		 (AbsLatte.Cond () happy_var_3 happy_var_5
+		 (AbsLatte.If () happy_var_3 happy_var_5
 	) `HappyStk` happyRest}}
 
 happyReduce_24 = happyReduce 7# 10# happyReduction_24
@@ -506,7 +506,7 @@ happyReduction_24 (happy_x_7 `HappyStk`
 	case happyOut14 happy_x_5 of { happy_var_5 -> 
 	case happyOut14 happy_x_7 of { happy_var_7 -> 
 	happyIn14
-		 (AbsLatte.CondElse () happy_var_3 happy_var_5 happy_var_7
+		 (AbsLatte.IfElse () happy_var_3 happy_var_5 happy_var_7
 	) `HappyStk` happyRest}}}
 
 happyReduce_25 = happyReduce 5# 10# happyReduction_25
@@ -614,26 +614,26 @@ happyReduce_38 = happySpecReduce_1  15# happyReduction_38
 happyReduction_38 happy_x_1
 	 =  case happyOut4 happy_x_1 of { happy_var_1 -> 
 	happyIn19
-		 (AbsLatte.EVar () happy_var_1
+		 (AbsLatte.Var () happy_var_1
 	)}
 
 happyReduce_39 = happySpecReduce_1  15# happyReduction_39
 happyReduction_39 happy_x_1
 	 =  case happyOut5 happy_x_1 of { happy_var_1 -> 
 	happyIn19
-		 (AbsLatte.ELitInt () happy_var_1
+		 (AbsLatte.LitInt () happy_var_1
 	)}
 
 happyReduce_40 = happySpecReduce_1  15# happyReduction_40
 happyReduction_40 happy_x_1
 	 =  happyIn19
-		 (AbsLatte.ELitTrue ()
+		 (AbsLatte.LitTrue ()
 	)
 
 happyReduce_41 = happySpecReduce_1  15# happyReduction_41
 happyReduction_41 happy_x_1
 	 =  happyIn19
-		 (AbsLatte.ELitFalse ()
+		 (AbsLatte.LitFalse ()
 	)
 
 happyReduce_42 = happyReduce 4# 15# happyReduction_42
@@ -645,14 +645,14 @@ happyReduction_42 (happy_x_4 `HappyStk`
 	 = case happyOut4 happy_x_1 of { happy_var_1 -> 
 	case happyOut26 happy_x_3 of { happy_var_3 -> 
 	happyIn19
-		 (AbsLatte.EApp () happy_var_1 happy_var_3
+		 (AbsLatte.App () happy_var_1 happy_var_3
 	) `HappyStk` happyRest}}
 
 happyReduce_43 = happySpecReduce_1  15# happyReduction_43
 happyReduction_43 happy_x_1
 	 =  case happyOut6 happy_x_1 of { happy_var_1 -> 
 	happyIn19
-		 (AbsLatte.EString () happy_var_1
+		 (AbsLatte.String () happy_var_1
 	)}
 
 happyReduce_44 = happySpecReduce_3  15# happyReduction_44
@@ -695,7 +695,7 @@ happyReduction_48 happy_x_3
 	case happyOut28 happy_x_2 of { happy_var_2 -> 
 	case happyOut20 happy_x_3 of { happy_var_3 -> 
 	happyIn21
-		 (AbsLatte.EMul () happy_var_1 happy_var_2 happy_var_3
+		 (AbsLatte.Mul () happy_var_1 happy_var_2 happy_var_3
 	)}}}
 
 happyReduce_49 = happySpecReduce_1  17# happyReduction_49
@@ -713,7 +713,7 @@ happyReduction_50 happy_x_3
 	case happyOut27 happy_x_2 of { happy_var_2 -> 
 	case happyOut21 happy_x_3 of { happy_var_3 -> 
 	happyIn22
-		 (AbsLatte.EAdd () happy_var_1 happy_var_2 happy_var_3
+		 (AbsLatte.Add () happy_var_1 happy_var_2 happy_var_3
 	)}}}
 
 happyReduce_51 = happySpecReduce_1  18# happyReduction_51
@@ -731,7 +731,7 @@ happyReduction_52 happy_x_3
 	case happyOut29 happy_x_2 of { happy_var_2 -> 
 	case happyOut22 happy_x_3 of { happy_var_3 -> 
 	happyIn23
-		 (AbsLatte.ERel () happy_var_1 happy_var_2 happy_var_3
+		 (AbsLatte.Rel () happy_var_1 happy_var_2 happy_var_3
 	)}}}
 
 happyReduce_53 = happySpecReduce_1  19# happyReduction_53
@@ -748,7 +748,7 @@ happyReduction_54 happy_x_3
 	 =  case happyOut23 happy_x_1 of { happy_var_1 -> 
 	case happyOut24 happy_x_3 of { happy_var_3 -> 
 	happyIn24
-		 (AbsLatte.EAnd () happy_var_1 happy_var_3
+		 (AbsLatte.And () happy_var_1 happy_var_3
 	)}}
 
 happyReduce_55 = happySpecReduce_1  20# happyReduction_55
@@ -765,7 +765,7 @@ happyReduction_56 happy_x_3
 	 =  case happyOut24 happy_x_1 of { happy_var_1 -> 
 	case happyOut25 happy_x_3 of { happy_var_3 -> 
 	happyIn25
-		 (AbsLatte.EOr () happy_var_1 happy_var_3
+		 (AbsLatte.Or () happy_var_1 happy_var_3
 	)}}
 
 happyReduce_57 = happySpecReduce_1  21# happyReduction_57
@@ -941,6 +941,11 @@ happyError ts =
     t:_     -> " before `" ++ id(prToken t) ++ "'"
 
 myLexer = tokens
+{-# LINE 1 "templates/GenericTemplate.hs" #-}
+{-# LINE 1 "templates/GenericTemplate.hs" #-}
+{-# LINE 1 "<built-in>" #-}
+{-# LINE 18 "<built-in>" #-}
+{-# LINE 1 "/Users/Dominik/.stack/programs/x86_64-osx/ghc-8.6.3/lib/ghc-8.6.3/include/ghcversion.h" #-}
 
 
 
@@ -954,6 +959,11 @@ myLexer = tokens
 
 
 
+
+
+
+{-# LINE 19 "<built-in>" #-}
+{-# LINE 1 "/var/folders/pw/5xp2wfqd1gv0x4smsfs1_n8r0000gn/T/ghc82306_0/ghc_2.h" #-}
 
 
 

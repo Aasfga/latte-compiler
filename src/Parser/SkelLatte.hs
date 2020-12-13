@@ -14,32 +14,32 @@ transIdent x = case x of
   Ident string -> failure x
 transProgram :: Show a => Program a -> Result
 transProgram x = case x of
-  Program _ topdefs -> failure x
-transTopDef :: Show a => TopDef a -> Result
-transTopDef x = case x of
-  FnDef _ type_ ident args block -> failure x
-transArg :: Show a => Arg a -> Result
-transArg x = case x of
-  Arg _ type_ ident -> failure x
+  Program _ functions -> failure x
+transFunction :: Show a => Function a -> Result
+transFunction x = case x of
+  Function _ type_ ident arguments block -> failure x
+transArgument :: Show a => Argument a -> Result
+transArgument x = case x of
+  Argument _ type_ ident -> failure x
 transBlock :: Show a => Block a -> Result
 transBlock x = case x of
-  Block _ stmts -> failure x
-transStmt :: Show a => Stmt a -> Result
-transStmt x = case x of
+  Block _ statements -> failure x
+transStatement :: Show a => Statement a -> Result
+transStatement x = case x of
   Empty _ -> failure x
-  BStmt _ block -> failure x
-  Decl _ type_ items -> failure x
+  InnerBlock _ block -> failure x
+  Decl _ type_ declarations -> failure x
   Ass _ ident expr -> failure x
   Incr _ ident -> failure x
   Decr _ ident -> failure x
-  Ret _ expr -> failure x
-  VRet _ -> failure x
-  Cond _ expr stmt -> failure x
-  CondElse _ expr stmt1 stmt2 -> failure x
-  While _ expr stmt -> failure x
+  Return _ expr -> failure x
+  VoidReturn _ -> failure x
+  If _ expr statement -> failure x
+  IfElse _ expr statement1 statement2 -> failure x
+  While _ expr statement -> failure x
   SExp _ expr -> failure x
-transItem :: Show a => Item a -> Result
-transItem x = case x of
+transDeclaration :: Show a => Declaration a -> Result
+transDeclaration x = case x of
   NoInit _ ident -> failure x
   Init _ ident expr -> failure x
 transType :: Show a => Type a -> Result
@@ -51,19 +51,19 @@ transType x = case x of
   Fun _ type_ types -> failure x
 transExpr :: Show a => Expr a -> Result
 transExpr x = case x of
-  EVar _ ident -> failure x
-  ELitInt _ integer -> failure x
-  ELitTrue _ -> failure x
-  ELitFalse _ -> failure x
-  EApp _ ident exprs -> failure x
-  EString _ string -> failure x
+  Var _ ident -> failure x
+  LitInt _ integer -> failure x
+  LitTrue _ -> failure x
+  LitFalse _ -> failure x
+  App _ ident exprs -> failure x
+  String _ string -> failure x
   Neg _ expr -> failure x
   Not _ expr -> failure x
-  EMul _ expr1 mulop expr2 -> failure x
-  EAdd _ expr1 addop expr2 -> failure x
-  ERel _ expr1 relop expr2 -> failure x
-  EAnd _ expr1 expr2 -> failure x
-  EOr _ expr1 expr2 -> failure x
+  Mul _ expr1 mulop expr2 -> failure x
+  Add _ expr1 addop expr2 -> failure x
+  Rel _ expr1 relop expr2 -> failure x
+  And _ expr1 expr2 -> failure x
+  Or _ expr1 expr2 -> failure x
 transAddOp :: Show a => AddOp a -> Result
 transAddOp x = case x of
   Plus _ -> failure x

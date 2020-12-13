@@ -2,51 +2,51 @@
 
 entrypoints Program ;
 
-Program.   Program ::= [TopDef] ;
+Program.   Program ::= [Function] ;
 
-FnDef.	   TopDef ::= Type Ident "(" [Arg] ")" Block ;
+Function.	 Function ::= Type Ident "(" [Argument] ")" Block ;
 
-separator nonempty TopDef "" ;
+separator nonempty Function "" ;
 
-Arg. 	   Arg ::= Type Ident;
+Argument. 	   Argument ::= Type Ident;
 
-separator  Arg "," ;
+separator  Argument "," ;
 
 -- statements ----------------------------------------------
 
-Block.     Block ::= "{" [Stmt] "}" ;
+Block.     Block ::= "{" [Statement] "}" ;
 
-separator  Stmt "" ;
+separator  Statement "" ;
 
-Empty.     Stmt ::= ";" ;
+Empty.     Statement ::= ";" ;
 
-BStmt.     Stmt ::= Block ;
+InnerBlock.   Statement ::= Block ;
 
-Decl.      Stmt ::= Type [Item] ";" ;
+Decl.  Statement ::= Type [Declaration] ";" ;
 
-NoInit.    Item ::= Ident ; 
+NoInit.    Declaration ::= Ident ; 
 
-Init.      Item ::= Ident "=" Expr ;
+Init.      Declaration ::= Ident "=" Expr ;
 
-separator nonempty Item "," ;
+separator nonempty Declaration "," ;
 
-Ass.       Stmt ::= Ident "=" Expr  ";" ;
+Ass.       Statement ::= Ident "=" Expr  ";" ;
 
-Incr.      Stmt ::= Ident "++"  ";" ;
+Incr.      Statement ::= Ident "++"  ";" ;
 
-Decr.      Stmt ::= Ident "--"  ";" ;
+Decr.      Statement ::= Ident "--"  ";" ;
 
-Ret.       Stmt ::= "return" Expr ";" ;
+Return.       Statement ::= "return" Expr ";" ;
 
-VRet.      Stmt ::= "return" ";" ;
+VoidReturn.      Statement ::= "return" ";" ;
 
-Cond.      Stmt ::= "if" "(" Expr ")" Stmt  ;
+If.      Statement ::= "if" "(" Expr ")" Statement  ;
 
-CondElse.  Stmt ::= "if" "(" Expr ")" Stmt "else" Stmt  ;
+IfElse.  Statement ::= "if" "(" Expr ")" Statement "else" Statement  ;
 
-While.     Stmt ::= "while" "(" Expr ")" Stmt ;
+While.     Statement ::= "while" "(" Expr ")" Statement ;
 
-SExp.      Stmt ::= Expr  ";" ;
+SExp.      Statement ::= Expr  ";" ;
 
 -- Types ---------------------------------------------------
 
@@ -64,31 +64,31 @@ separator  Type "," ;
 
 -- Expressions ---------------------------------------------
 
-EVar.      Expr6 ::= Ident ;
+Var.      Expr6 ::= Ident ;
 
-ELitInt.   Expr6 ::= Integer ;
+LitInt.   Expr6 ::= Integer ;
 
-ELitTrue.  Expr6 ::= "true" ;
+LitTrue.  Expr6 ::= "true" ;
 
-ELitFalse. Expr6 ::= "false" ;
+LitFalse. Expr6 ::= "false" ;
 
-EApp.      Expr6 ::= Ident "(" [Expr] ")" ;
+App.      Expr6 ::= Ident "(" [Expr] ")" ;
 
-EString.   Expr6 ::= String ;
+String.   Expr6 ::= String ;
 
 Neg.       Expr5 ::= "-" Expr6 ;
 
 Not.       Expr5 ::= "!" Expr6 ;
 
-EMul.      Expr4 ::= Expr4 MulOp Expr5 ;
+Mul.      Expr4 ::= Expr4 MulOp Expr5 ;
 
-EAdd.      Expr3 ::= Expr3 AddOp Expr4 ;
+Add.      Expr3 ::= Expr3 AddOp Expr4 ;
 
-ERel.      Expr2 ::= Expr2 RelOp Expr3 ;
+Rel.      Expr2 ::= Expr2 RelOp Expr3 ;
 
-EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
+And.      Expr1 ::= Expr2 "&&" Expr1 ;
 
-EOr.       Expr ::= Expr1 "||" Expr ;
+Or.       Expr ::= Expr1 "||" Expr ;
 
 coercions  Expr 6 ;
 
