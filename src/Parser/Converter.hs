@@ -15,7 +15,7 @@ convertType :: Src.Type a -> Dest.Type
 convertType (Src.Int _) = Dest.Int
 convertType (Src.Str _) = Dest.String
 convertType (Src.Bool _) = Dest.Bool
-convertType (Src.Void _) = Dest.Bool
+convertType (Src.Void _) = Dest.Void
 convertType (Src.Fun _ retType argTypes) = 
   Dest.Fun (convertType retType) (map convertType argTypes)
 
@@ -78,7 +78,7 @@ convertExpression (Src.Mul a first op second) =
 convertExpression (Src.Add a first op second) = 
   Dest.Operation a (convertExpression first) (convertAddOp op) (convertExpression second)
 convertExpression (Src.Rel a first op second) = 
-  Dest.Operation a (convertExpression first) (convertRelOp op) (convertExpression second)
+  Dest.Compare a (convertExpression first) (convertRelOp op) (convertExpression second)
 convertExpression (Src.And a first second) = 
   Dest.Operation a (convertExpression first) Dest.And (convertExpression second)
 convertExpression (Src.Or a first second) = 
@@ -94,7 +94,7 @@ convertAddOp :: Src.AddOp a -> Dest.Operation
 convertAddOp (Src.Plus _) = Dest.Plus  
 convertAddOp (Src.Minus _) = Dest.Minus
 
-convertRelOp :: Src.RelOp a -> Dest.Operation
+convertRelOp :: Src.RelOp a -> Dest.CompareOperation
 convertRelOp (Src.LTH _) = Dest.LTH
 convertRelOp (Src.LE _) = Dest.LE
 convertRelOp (Src.GTH _) = Dest.GTH

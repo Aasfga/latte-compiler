@@ -79,6 +79,7 @@ data Expression a
     | Neg a (Expression a)
     | Not a (Expression a)
     | Operation a (Expression a) Operation (Expression a)
+    | Compare a (Expression a) CompareOperation (Expression a)
   deriving (Eq, Ord, Show, Read)
 
 instance Functor Expression where
@@ -91,9 +92,16 @@ instance Functor Expression where
         Neg a expr -> Neg (f a) (fmap f expr)
         Not a expr -> Not (f a) (fmap f expr)
         Operation a expr1 op expr2 -> Operation (f a) (fmap f expr1) op (fmap f expr2)
+        Compare a expr1 op expr2 -> Compare (f a) (fmap f expr1) op (fmap f expr2)
 
-
-
+data CompareOperation 
+  = LTH 
+  | LE 
+  | GTH 
+  | GE 
+  | EQU 
+  | NE
+  deriving (Eq, Ord, Show, Read)
 
 data Operation 
   = Plus 
@@ -103,10 +111,4 @@ data Operation
   | Mod 
   | Or
   | And
-  | LTH 
-  | LE 
-  | GTH 
-  | GE 
-  | EQU 
-  | NE
   deriving (Eq, Ord, Show, Read)
