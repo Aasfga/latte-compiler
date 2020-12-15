@@ -3,14 +3,15 @@ module Analyzer.AnalyzerState where
 import AbstractSyntax.Definitions
 import qualified Data.Map as Map
 import Control.Monad.State
+-- import qualified Control.Monad.Except as Except
 import Control.Monad.Except
+import Errors
 
-type AnalyzeError = String
 type SymbolInfo = Type
 type SymbolTable = Map.Map Ident [SymbolInfo]
 type Scope = [Ident]
 type AccessInfo = Bool
-type AnalyzerState = StateT (SymbolTable, [Scope], [AccessInfo], Type) (Either AnalyzeError)
+type AnalyzerState = StateT (SymbolTable, [Scope], [AccessInfo], Type) (Either AnalyzerError)
 
 emptyAnalyzerState :: (SymbolTable, [Scope], [AccessInfo], Type)
 emptyAnalyzerState = (Map.empty, [], [], Int)
@@ -27,21 +28,21 @@ removeScope :: AnalyzerState ()
 removeScope = do
   (x, scopes, z, t) <- get
   case scopes of 
-    [] -> throwError "No scope defined"
+    [] -> throwError $ InternalError "No scope defined"
     (_:rest) -> put (x, rest, z, t)
 
 currentScope :: AnalyzerState Scope
 currentScope = do
   (_, scopes, _, _) <- get
   case scopes of 
-    [] -> throwError "No scope defined"
+    [] -> throwError $ InternalError "No scope defined"
     (scope:_) -> return scope
 
 modifyScope :: (Scope -> Scope) -> AnalyzerState ()
 modifyScope f = do
   (x, scopes, z, t) <- get
   case scopes of 
-    [] -> throwError "No scope defined"
+    [] -> throwError $ InternalError "No scope defined"
     (y:ys) -> put (x, f y:ys, z, t)
 
 modifySymbolTable :: (SymbolTable -> SymbolTable) -> AnalyzerState ()
@@ -68,24 +69,21 @@ canDefineSymbol :: Ident -> AnalyzerState Bool
 canDefineSymbol ident = notElem ident <$> currentScope
 
 checkReturnType :: Type -> AnalyzerState ()
-checkReturnType _type = do 
-  funType <- getFunctionType
-  unless (_type == funType) (throwError "Wrong ret type")
+checkReturnType found = do 
+  required <- getFunctionType
+  unless (found == required) (throwError $ TypeMissmatchReturn "fun" required found)
 
 addSymbol :: Ident -> Type -> AnalyzerState ()
 addSymbol ident _type = do
   canDefine <- canDefineSymbol ident
-  if not canDefine then
-    throwError "Symbol defined"
-  else do
-    modifyScope (ident:)
-    modifySymbolTable $ Map.insertWith (++) ident [_type]
+  unless canDefine (throwError $ SymbolInScope ident _type)
+  modifyScope (ident:)
+  modifySymbolTable $ Map.insertWith (++) ident [_type]
 
 getSymbolType :: Ident -> AnalyzerState Type
 getSymbolType ident = do
   table <- getSymbolTable
   case Map.lookup ident table of 
-    Nothing -> throwError "Variable not defined"
-    Just [] -> throwError "Variable not defined"
+    Nothing -> throwError $ SymbolNotFound ident
+    Just [] -> throwError $ SymbolNotFound ident
     Just (_type:_) -> return _type
-    

@@ -1,8 +1,11 @@
 module AbstractSyntax.Definitions where
 
+import Data.List
+
 data Position = Position { filename :: String, 
                            lineNumber :: Int, 
                            columnNumber :: Int }
+  deriving (Eq, Ord, Show, Read)
 type Ident = String
 
 data Program a = Program a [Function a]
@@ -68,7 +71,18 @@ instance Functor Declaration where
         Init a ident expr -> Init (f a) ident (fmap f expr)
 
 data Type = Int | String | Bool | Void | Fun Type [Type]
-  deriving (Eq, Ord, Show, Read)
+  deriving (Eq, Ord, Read)
+
+instance Show Type where
+  show Int = "int"
+  show String = "string"
+  show Bool = "bool"
+  show Void = "void"
+  show (Fun _type argTypes) = let
+      parsedArgTypes = intercalate " -> " $ map show argTypes
+      parsedType = show _type
+    in
+      "(" ++ parsedArgTypes ++ " -> " ++ parsedType ++ ")" 
 
 data Expression a
     = Variable a Ident
@@ -111,4 +125,14 @@ data Operation
   | Mod 
   | Or
   | And
-  deriving (Eq, Ord, Show, Read)
+  deriving (Eq, Ord, Read)
+
+
+instance Show Operation where 
+  show Plus = "+"
+  show Minus = "-"
+  show Times = "*"
+  show Div = "/"
+  show Mod = "%"
+  show Or = "||"
+  show And = "&&"
