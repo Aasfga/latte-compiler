@@ -1,0 +1,5 @@
+#!/bin/bash
+
+FILE_PATH=$(realpath $1)
+
+cat $FILE_PATH | ./latte
