@@ -94,56 +94,82 @@ analyzeDeclaration (Init _ ident expr) _type = do
   unless (exprType == _type) (throwError $ TypeMissmatchAssigment _type exprType)
   addSymbol ident _type 
 
-analyzeStatement :: Statement a -> AnalyzerState ()
+calculateIfExpression :: Expression a -> Maybe Bool
+calculateIfExpression (BoolValue _ value) = Just value
+calculateIfExpression _ = Nothing
+
+analyzeStatement :: Statement a -> AnalyzerState Bool
 analyzeStatement (Empty _) = 
-  return ()
+  return False
 analyzeStatement (InnerBlock _ block) = 
   analyzeBlock block []
-analyzeStatement (Declaration _ _type declarations) = 
+analyzeStatement (Declaration _ _type declarations) = do
   mapM_ (`analyzeDeclaration` _type) declarations
+  return False
 analyzeStatement (Assigment _ ident expression) = do
   exprType <- analyzeExpression expression
   _type <- getSymbolType ident
   unless (_type == exprType) (throwError $ TypeMissmatchAssigment _type exprType)
+  return False
 analyzeStatement (Increment _ ident) = do
   _type <- getSymbolType ident
   unless (isInt _type) (throwError $ TypeMissmatchUnaryOperator _type "++")
+  return False
 analyzeStatement (Decrement _ ident) = do
   _type <- getSymbolType ident
   unless (isInt _type) (throwError $ TypeMissmatchUnaryOperator _type "--")
+  return False
 analyzeStatement (Return _ expr) = do
   _type <- analyzeExpression expr
   checkReturnType _type
-analyzeStatement (VoidReturn _) =
+  return True
+analyzeStatement (VoidReturn _) = do
   checkReturnType Void
+  return True
 analyzeStatement (If _ expression firstBranch) = do
   _type <- analyzeExpression expression 
   unless (_type == Bool) (throwError $ TypeMissmatchIf _type)
-  analyzeStatement firstBranch
+  firstReturn <- analyzeStatement firstBranch
+  return $ case calculateIfExpression expression of 
+    Just True -> firstReturn
+    Just False -> False
+    Nothing -> False
 analyzeStatement (IfElse _ expression firstBranch secondBranch) = do      
   _type <- analyzeExpression expression
   unless (isBool _type) (throwError $ TypeMissmatchIf _type)
-  analyzeStatement firstBranch
-  analyzeStatement secondBranch
+  firstReturn <- analyzeStatement firstBranch
+  secondReturn <- analyzeStatement secondBranch
+  return $ case calculateIfExpression expression of
+    Just True -> firstReturn
+    Just False -> secondReturn
+    Nothing -> firstReturn && secondReturn
 analyzeStatement (While _ expression statement) = do
   _type <- analyzeExpression expression
   unless (isBool _type) (throwError $ TypeMissmatchIf _type)
-  analyzeStatement statement
+  stmtReturn <- analyzeStatement statement
+  return $ case calculateIfExpression expression of
+    Just True -> stmtReturn
+    Just False -> False
+    Nothing -> False
 analyzeStatement (Expression _ expression) = do
   _ <- analyzeExpression expression
-  return ()
+  return False
 
-analyzeBlock :: Block a -> [Argument a] -> AnalyzerState ()
+analyzeBlock :: Block a -> [Argument a] -> AnalyzerState Bool
 analyzeBlock (Block _ statements) arguments = do
   newScope
   mapM_ (\(Argument _ t i) -> addSymbol i t) arguments
-  mapM_ analyzeStatement statements
+  returnList <- mapM analyzeStatement statements
   removeScope
+  return $ or returnList
 
 analyzeFunction :: Function a -> AnalyzerState ()
-analyzeFunction (Function _ _type _ arguments block) = do 
+analyzeFunction (Function _ _type ident arguments block) = do 
   setFunctionType _type
-  analyzeBlock block arguments
+  isReturn <- analyzeBlock block arguments
+  case _type of 
+    Void -> return ()
+    _ -> unless isReturn (throwError $ MissingReturn ident _type)
 
 addFunctionsToScope :: Function a -> AnalyzerState ()
 addFunctionsToScope (Function _ _type ident arguments _) = do

@@ -13,6 +13,7 @@ data AnalyzerError
   | TypeMissmatchAssigment Type Type
   | TypeMissmatchIf Type
   | TypeMissmatchReturn Ident Type Type
+  | MissingReturn Ident Type
   | InternalError String
 
 
@@ -47,5 +48,7 @@ instance Show AnalyzerError where
     "Wrong return type in function "++ ident ++ ":\n" ++ 
     "Required: " ++ show required ++ "\n" ++ 
     "Found: " ++ show found
+  show (MissingReturn ident _type) = 
+    "Function " ++ ident ++ " should return value of type " ++ show _type ++ " but returns nothing"
   show (InternalError msg) = 
     "Internal error. " ++ msg
