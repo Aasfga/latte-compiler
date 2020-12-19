@@ -86,9 +86,7 @@ instance Show Type where
 
 data Expression a
     = Variable a Ident
-    | IntValue a Int
-    | StringValue a String
-    | BoolValue a Bool
+    | Value a Value
     | Application a Ident [Expression a]
     | Neg a (Expression a)
     | Not a (Expression a)
@@ -99,14 +97,18 @@ data Expression a
 instance Functor Expression where
     fmap f x = case x of
         Variable a ident -> Variable (f a) ident
-        IntValue a int -> IntValue (f a) int
-        BoolValue a bool -> BoolValue (f a) bool
-        StringValue a string -> StringValue (f a) string
+        Value a value -> Value (f a) value
         Application a ident exprs -> Application (f a) ident (map (fmap f) exprs)
         Neg a expr -> Neg (f a) (fmap f expr)
         Not a expr -> Not (f a) (fmap f expr)
         Operation a expr1 op expr2 -> Operation (f a) (fmap f expr1) op (fmap f expr2)
         Compare a expr1 op expr2 -> Compare (f a) (fmap f expr1) op (fmap f expr2)
+
+data Value 
+  = IntValue Int
+  | BoolValue Bool
+  | StringValue String
+  deriving (Eq, Ord, Show, Read)
 
 data CompareOperation 
   = LTH 

@@ -2,30 +2,10 @@ module Analyzer.Analyzer where
 
 import Analyzer.AnalyzerState
 import AbstractSyntax.Definitions
+import AbstractSyntax.Utilities
 import Control.Monad.State
 import Control.Monad.Except
-
 import Errors
-
-getArgumentType :: Argument a -> Type
-getArgumentType (Argument _ _type _) = _type
-
-isStringOperation :: Operation -> Bool
-isStringOperation Plus = True
-isStringOperation _ = False
-
-isIntOperation :: Operation -> Bool
-isIntOperation Plus = True
-isIntOperation Minus = True
-isIntOperation Times = True
-isIntOperation Div = True
-isIntOperation Mod = True
-isIntOperation _ = False
-
-isBoolOperation :: Operation -> Bool
-isBoolOperation And = True
-isBoolOperation Or = True
-isBoolOperation _ = False
 
 analyzeOperation :: Type -> Operation -> Type -> Maybe Type
 analyzeOperation Int op Int = 
@@ -36,29 +16,14 @@ analyzeOperation Bool op Bool =
   if isBoolOperation op then Just Bool else Nothing
 analyzeOperation _ _ _ = Nothing
 
-isCorrectCompare :: Type -> Type -> Bool
-isCorrectCompare Int Int = True
-isCorrectCompare String String = True
-isCorrectCompare Bool Bool = True
-isCorrectCompare _ _ = False
-
-isInt :: Type -> Bool
-isInt Int = True
-isInt _ = False
-
-isBool :: Type -> Bool
-isBool Bool = True
-isBool _ = False
-
 analyzeExpression :: Expression a -> AnalyzerState Type
 analyzeExpression (Variable _ ident) = 
   getSymbolType ident
-analyzeExpression (IntValue _ _) = 
-  return Int
-analyzeExpression (StringValue _ _) = 
-  return String
-analyzeExpression (BoolValue _ _) = 
-  return Bool
+analyzeExpression (Value _ value) = 
+  return $ case value of 
+    IntValue _ -> Int
+    BoolValue _ -> Bool
+    StringValue _ -> String
 analyzeExpression (Application _ ident expressions) = do
   found <- mapM analyzeExpression expressions
   identType <- getSymbolType ident
@@ -95,8 +60,7 @@ analyzeDeclaration (Init _ ident expr) _type = do
   addSymbol ident _type 
 
 calculateIfExpression :: Expression a -> Maybe Bool
-calculateIfExpression (BoolValue _ value) = Just value
-calculateIfExpression _ = Nothing
+calculateIfExpression = undefined
 
 analyzeStatement :: Statement a -> AnalyzerState Bool
 analyzeStatement (Empty _) = 
