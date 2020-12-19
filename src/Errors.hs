@@ -2,6 +2,10 @@ module Errors where
 import Data.List
 import AbstractSyntax.Definitions
 
+data LatteError 
+  = AnalyzerError AnalyzerError
+  | Xasdafadfsaaasdf Int
+
 data AnalyzerError 
   = SymbolNotFound Ident
   | SymbolInScope Ident Type
@@ -15,6 +19,7 @@ data AnalyzerError
   | TypeMissmatchReturn Ident Type Type
   | MissingReturn Ident Type
   | InternalError String
+  | IntegerOutOfBound Int
 
 
 instance Show AnalyzerError where   
@@ -52,3 +57,5 @@ instance Show AnalyzerError where
     "Function " ++ ident ++ " should return value of type " ++ show _type ++ " but returns nothing"
   show (InternalError msg) = 
     "Internal error. " ++ msg
+  show (IntegerOutOfBound x) = 
+    "Integer " ++ show x ++ " is out of bound"  

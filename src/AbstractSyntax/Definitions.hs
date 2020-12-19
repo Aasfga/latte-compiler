@@ -104,6 +104,7 @@ instance Functor Expression where
         Operation a expr1 op expr2 -> Operation (f a) (fmap f expr1) op (fmap f expr2)
         Compare a expr1 op expr2 -> Compare (f a) (fmap f expr1) op (fmap f expr2)
 
+
 data Value 
   = IntValue Int
   | BoolValue Bool

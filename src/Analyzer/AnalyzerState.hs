@@ -24,12 +24,22 @@ modifyScopeStack f = do
 newScope :: AnalyzerState ()
 newScope = modifyScopeStack ([]:)
 
+popSymbol :: Ident -> AnalyzerState ()
+popSymbol ident = do
+  table <- getSymbolTable
+  let symbols = Map.lookup ident table
+  case symbols of
+    Just (_:xs) -> modifySymbolTable $ Map.insert ident xs
+    _ -> throwError $ InternalError ("No symbol for ident " ++ ident)
+
 removeScope :: AnalyzerState ()
 removeScope = do
   (x, scopes, z, t) <- get
   case scopes of 
     [] -> throwError $ InternalError "No scope defined"
-    (_:rest) -> put (x, rest, z, t)
+    (scope:rest) -> do
+      put (x, rest, z, t)
+      mapM_ popSymbol scope
 
 currentScope :: AnalyzerState Scope
 currentScope = do

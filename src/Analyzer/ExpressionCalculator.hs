@@ -43,6 +43,7 @@ calculateExpression (Operation _ firstExpr op secondExpr) = do
     (BoolValue  x, BoolValue y) -> BoolValue <$> calculateBoolOperation op x y
     (IntValue x, IntValue y) -> IntValue <$> calculateIntOperation op x y
     (StringValue x, StringValue y) -> StringValue <$> calculateStringOperation op x y
+    _ -> Nothing
 calculateExpression (Compare  _ firstExpr op secondExpr) = do
   firstValue <- calculateExpression firstExpr 
   secondValue <- calculateExpression secondExpr 

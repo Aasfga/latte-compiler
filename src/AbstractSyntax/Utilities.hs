@@ -44,3 +44,9 @@ getCompareFunction GTH  = (>)
 getCompareFunction GE = (>=)
 getCompareFunction EQU = (==)
 getCompareFunction NE = (/=)
+
+minInt :: Int
+minInt = -2147483648
+
+maxInt :: Int
+maxInt = 2147483647

@@ -21,10 +21,12 @@ analyzeExpression :: Expression a -> AnalyzerState Type
 analyzeExpression (Variable _ ident) = 
   getSymbolType ident
 analyzeExpression (Value _ value) = 
-  return $ case value of 
-    IntValue _ -> Int
-    BoolValue _ -> Bool
-    StringValue _ -> String
+  case value of 
+    IntValue x -> do
+      unless (minInt <= x && x <= maxInt) (throwError $ IntegerOutOfBound x)
+      return Int
+    BoolValue _ -> return Bool
+    StringValue _ -> return String
 analyzeExpression (Application _ ident expressions) = do
   found <- mapM analyzeExpression expressions
   identType <- getSymbolType ident
@@ -63,8 +65,11 @@ analyzeDeclaration (Init _ ident expr) _type = do
 analyzeStatement :: Statement a -> AnalyzerState Bool
 analyzeStatement (Empty _) = 
   return False
-analyzeStatement (InnerBlock _ block) = 
-  analyzeBlock block []
+analyzeStatement (InnerBlock _ block) = do
+  newScope 
+  blockReturn <- analyzeBlock block []
+  removeScope 
+  return blockReturn
 analyzeStatement (Declaration _ _type declarations) = do
   mapM_ (`analyzeDeclaration` _type) declarations
   return False
@@ -110,7 +115,8 @@ analyzeStatement (While _ expression statement) = do
   unless (isBool _type) (throwError $ TypeMissmatchIf _type)
   stmtReturn <- analyzeStatement statement
   return $ case calculateBoolExpression expression of
-    Just True -> stmtReturn
+    -- TODO: Check!
+    Just True -> True
     Just False -> False
     Nothing -> False
 analyzeStatement (Expression _ expression) = do
