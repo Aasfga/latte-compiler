@@ -6,6 +6,7 @@ import AbstractSyntax.Utilities
 import Control.Monad.State
 import Control.Monad.Except
 import Errors
+import Analyzer.ExpressionCalculator
 
 analyzeOperation :: Type -> Operation -> Type -> Maybe Type
 analyzeOperation Int op Int = 
@@ -59,9 +60,6 @@ analyzeDeclaration (Init _ ident expr) _type = do
   unless (exprType == _type) (throwError $ TypeMissmatchAssigment _type exprType)
   addSymbol ident _type 
 
-calculateIfExpression :: Expression a -> Maybe Bool
-calculateIfExpression = undefined
-
 analyzeStatement :: Statement a -> AnalyzerState Bool
 analyzeStatement (Empty _) = 
   return False
@@ -94,7 +92,7 @@ analyzeStatement (If _ expression firstBranch) = do
   _type <- analyzeExpression expression 
   unless (_type == Bool) (throwError $ TypeMissmatchIf _type)
   firstReturn <- analyzeStatement firstBranch
-  return $ case calculateIfExpression expression of 
+  return $ case calculateBoolExpression expression of 
     Just True -> firstReturn
     Just False -> False
     Nothing -> False
@@ -103,7 +101,7 @@ analyzeStatement (IfElse _ expression firstBranch secondBranch) = do
   unless (isBool _type) (throwError $ TypeMissmatchIf _type)
   firstReturn <- analyzeStatement firstBranch
   secondReturn <- analyzeStatement secondBranch
-  return $ case calculateIfExpression expression of
+  return $ case calculateBoolExpression expression of
     Just True -> firstReturn
     Just False -> secondReturn
     Nothing -> firstReturn && secondReturn
@@ -111,7 +109,7 @@ analyzeStatement (While _ expression statement) = do
   _type <- analyzeExpression expression
   unless (isBool _type) (throwError $ TypeMissmatchIf _type)
   stmtReturn <- analyzeStatement statement
-  return $ case calculateIfExpression expression of
+  return $ case calculateBoolExpression expression of
     Just True -> stmtReturn
     Just False -> False
     Nothing -> False
@@ -148,11 +146,17 @@ addPredefinedFunctions = do
   addSymbol "readInt" (Fun Int [])
   addSymbol "readString" (Fun String [])
  
+checkIfMainExists :: AnalyzerState ()
+checkIfMainExists = do
+  mainType <- getSymbolType "main"
+  unless (mainType == Fun Int []) (throwError $ SymbolNotFound "main")
+
 analyzeProgram :: Program a -> AnalyzerState ()
 analyzeProgram (Program _ functions) = do
   newScope
   addPredefinedFunctions
   mapM_ addFunctionsToScope functions
+  checkIfMainExists
   mapM_ analyzeFunction functions
   removeScope
 
