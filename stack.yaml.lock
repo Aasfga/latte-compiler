@@ -18,6 +18,13 @@ packages:
       sha256: 5bb0af2da4e4cc5472a17063ecdbda8f1117e5f3509fcd600f2cbd7e2b760f49
   original:
     hackage: containers-0.6.2.1
+- completed:
+    hackage: microlens-platform-0.4.1@sha256:628997d8b405ef4a6169ccedbb62b2e77c1e6a4d4c9cb39fe3a5223b11caca96,2756
+    pantry-tree:
+      size: 358
+      sha256: 73357d52fca0d179b2236d56e2b127292fd3cf6f5c1117ec18fc728d0937c6d7
+  original:
+    hackage: microlens-platform-0.4.1
 snapshots:
 - completed:
     size: 532386

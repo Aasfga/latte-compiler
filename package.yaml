@@ -23,6 +23,7 @@ dependencies:
 - array >= 0.5 && < 6
 - mtl
 - containers
+- microlens-platform
 
 library:
   source-dirs: src
