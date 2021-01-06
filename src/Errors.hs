@@ -4,7 +4,7 @@ import AbstractSyntax.Definitions
 
 data LatteError 
   = AnalyzerError AnalyzerError
-  | Xasdafadfsaaasdf Int
+  | GeneratorError Int
 
 data AnalyzerError 
   = SymbolNotFound Ident
@@ -18,9 +18,8 @@ data AnalyzerError
   | TypeMissmatchIf Type
   | TypeMissmatchReturn Ident Type Type
   | MissingReturn Ident Type
-  | InternalError String
+  | InternalAnalyzerError String
   | IntegerOutOfBound Int
-
 
 instance Show AnalyzerError where   
   show (SymbolNotFound ident) = 
@@ -55,7 +54,14 @@ instance Show AnalyzerError where
     "Found: " ++ show found
   show (MissingReturn ident _type) = 
     "Function " ++ ident ++ " should return value of type " ++ show _type ++ " but returns nothing"
-  show (InternalError msg) = 
-    "Internal error. " ++ msg
+  show (InternalAnalyzerError msg) = 
+    "Internal analyzer error. " ++ msg
   show (IntegerOutOfBound x) = 
     "Integer " ++ show x ++ " is out of bound"  
+
+newtype GeneratorError
+  = InternalGeneratorError String 
+
+instance Show GeneratorError where 
+  show (InternalGeneratorError msg) = 
+    "Internal generator error. " ++ msg
