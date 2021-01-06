@@ -1,12 +1,12 @@
 module AbstractSyntax.Definitions where
 
 import Data.List
+import CommonTypes
 
 data Position = Position { filename :: String, 
                            lineNumber :: Int, 
                            columnNumber :: Int }
   deriving (Eq, Ord, Show, Read)
-type Ident = String
 
 data Program a = Program a [Function a]
   deriving (Eq, Ord, Show, Read)
