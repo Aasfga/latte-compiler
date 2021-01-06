@@ -50,3 +50,12 @@ minInt = -2147483648
 
 maxInt :: Int
 maxInt = 2147483647
+
+libraryFunctions :: [(String, Type)]
+libraryFunctions = [
+    ("printInt", Fun Void [Int]),
+    ("printString", Fun Void [String]),
+    ("error", Fun Void []),
+    ("readInt", Fun Int []),
+    ("readString", Fun String [])
+  ]

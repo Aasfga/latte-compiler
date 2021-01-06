@@ -144,13 +144,8 @@ addFunctionsToScope (Function _ _type ident arguments _) = do
   let argumentTypes = map getArgumentType arguments
   addSymbol ident (Fun _type argumentTypes)
 
-addPredefinedFunctions :: AnalyzerState ()
-addPredefinedFunctions = do
-  addSymbol "printInt" (Fun Void [Int])
-  addSymbol "printString" (Fun Void [String])
-  addSymbol "error" (Fun Void [])
-  addSymbol "readInt" (Fun Int [])
-  addSymbol "readString" (Fun String [])
+addLibraryFunctions :: AnalyzerState ()
+addLibraryFunctions = mapM_ (uncurry addSymbol) libraryFunctions 
  
 checkIfMainExists :: AnalyzerState ()
 checkIfMainExists = do
@@ -160,7 +155,7 @@ checkIfMainExists = do
 analyzeProgram :: Program a -> AnalyzerState ()
 analyzeProgram (Program _ functions) = do
   newScope
-  addPredefinedFunctions
+  addLibraryFunctions
   mapM_ addFunctionsToScope functions
   checkIfMainExists
   mapM_ analyzeFunction functions
