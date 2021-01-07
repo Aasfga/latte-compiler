@@ -1,6 +1,7 @@
 module Errors where
 import Data.List
 import AbstractSyntax.Definitions
+import Types
 
 data LatteError 
   = AnalyzerError AnalyzerError
@@ -59,9 +60,12 @@ instance Show AnalyzerError where
   show (IntegerOutOfBound x) = 
     "Integer " ++ show x ++ " is out of bound"  
 
-newtype GeneratorError
+data GeneratorError
   = InternalGeneratorError String 
+  | NotInFunctionContextError
 
 instance Show GeneratorError where 
   show (InternalGeneratorError msg) = 
     "Internal generator error. " ++ msg
+  show NotInFunctionContextError =
+    "Internal generator error. Generator isn't in function context but tries to modify it"

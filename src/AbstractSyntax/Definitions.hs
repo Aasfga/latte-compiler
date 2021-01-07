@@ -1,7 +1,7 @@
 module AbstractSyntax.Definitions where
 
 import Data.List
-import CommonTypes
+import Types
 
 data Position = Position { filename :: String, 
                            lineNumber :: Int, 

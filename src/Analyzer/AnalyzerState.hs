@@ -6,7 +6,7 @@ import Control.Monad.State
 -- import qualified Control.Monad.Except as Except
 import Control.Monad.Except
 import Errors
-import CommonTypes
+import Types
 
 type SymbolInfo = Type
 type SymbolTable = Map.Map Ident [SymbolInfo]
