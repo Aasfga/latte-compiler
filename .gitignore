@@ -23,14 +23,6 @@ cabal.project.local~
 .HTF/
 .ghc.environment.*
 
-### vscode ###
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
-
 **/hie.yaml
 **/latte.cabal
 **/bin
