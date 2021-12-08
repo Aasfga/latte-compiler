@@ -42,7 +42,9 @@ packages:
 extra-deps: [
   mtl-2.2.2,
   containers-0.6.2.1,
-  microlens-platform-0.4.1
+  microlens-platform-0.4.1,
+  tasty-1.4.2,
+  tasty-hunit-0.10.0.3
 ]
 
 # Override default flag values for local packages and extra-deps

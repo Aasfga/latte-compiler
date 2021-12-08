@@ -25,6 +25,20 @@ packages:
       sha256: 73357d52fca0d179b2236d56e2b127292fd3cf6f5c1117ec18fc728d0937c6d7
   original:
     hackage: microlens-platform-0.4.1
+- completed:
+    hackage: tasty-1.4.2@sha256:b124f1f5db8291e547254e3b52e94e091fb020b97421c6824fcb9df3a9d143a8,2688
+    pantry-tree:
+      size: 1944
+      sha256: 5e89b7c8633052a1bf288fd10d463e2fc2930268f8e6a973f90b5e13da83c3df
+  original:
+    hackage: tasty-1.4.2
+- completed:
+    hackage: tasty-hunit-0.10.0.3@sha256:ba774024f3a26100c559dbef41e030bdf443408ed848691f7b9aa85b6fb218c3,1545
+    pantry-tree:
+      size: 399
+      sha256: c82bce9c756f82fa9221fc2f89b8fa52858d630a388b9288af90cb0c03e084de
+  original:
+    hackage: tasty-hunit-0.10.0.3
 snapshots:
 - completed:
     size: 532386

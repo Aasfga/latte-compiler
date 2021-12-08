@@ -24,6 +24,8 @@ dependencies:
 - mtl
 - containers
 - microlens-platform
+- tasty >= 1.4
+- tasty-hunit
 
 library:
   source-dirs: src
@@ -41,7 +43,7 @@ executables:
 
 tests:
   latte-test:
-    main:                Spec.hs
+    main:                Test.hs
     source-dirs:         test
     ghc-options:
     - -threaded
@@ -49,3 +51,5 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - latte
+    - tasty
+    - tasty-hunit
