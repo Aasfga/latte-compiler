@@ -22,10 +22,10 @@ dependencies:
 - base >= 4.7 && < 5
 - array >= 0.5 && < 6
 - mtl
+- filepath
+- text
 - containers
 - microlens-platform
-- tasty >= 1.4
-- tasty-hunit
 
 library:
   source-dirs: src
@@ -53,3 +53,4 @@ tests:
     - latte
     - tasty
     - tasty-hunit
+    - shelly

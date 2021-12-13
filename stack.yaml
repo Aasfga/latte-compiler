@@ -44,7 +44,8 @@ extra-deps: [
   containers-0.6.2.1,
   microlens-platform-0.4.1,
   tasty-1.4.2,
-  tasty-hunit-0.10.0.3
+  tasty-hunit-0.10.0.3,
+  shelly-1.9.0
 ]
 
 # Override default flag values for local packages and extra-deps
