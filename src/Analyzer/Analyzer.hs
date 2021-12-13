@@ -161,11 +161,11 @@ analyzeProgram (Program _ functions) = do
   mapM_ analyzeFunction functions
   removeScope
 
-runAnalyzer :: Program a -> Either String String
+runAnalyzer :: Program a -> Either LatteError ()
 runAnalyzer program = 
   let
     initialState = emptyAnalyzerState
   in case runStateT (analyzeProgram program) initialState of
-    Left msg -> Left $ show msg
-    Right _ -> Right "OK"
+    Left analyzerError -> Left $ AnalyzerError analyzerError
+    Right _ -> Right ()
 

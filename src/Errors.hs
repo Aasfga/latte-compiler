@@ -4,8 +4,10 @@ import AbstractSyntax.Definitions
 import Types
 
 data LatteError 
-  = AnalyzerError AnalyzerError
+  = ParserError String
+  | AnalyzerError AnalyzerError
   | GeneratorError Int
+  deriving (Show)
 
 data AnalyzerError 
   = SymbolNotFound Ident

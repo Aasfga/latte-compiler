@@ -6,14 +6,15 @@ import Parser.Converter ( convert )
 import qualified Parser.AbsLatte as AbsLatte
 import AbstractSyntax.Definitions ( Program )
 import Parser.PrintLatte ( Print, printTree )
+import Errors
 
 _parse :: String -> Err (AbsLatte.Program ())
 _parse string = pProgram (myLexer string)
 
-parse :: String -> Either String (Program ())
+parse :: String -> Either LatteError (Program ())
 parse string = 
   case _parse string of 
-    Bad msg -> Left msg
+    Bad msg -> Left $ ParserError msg
     Ok tree -> Right $ convert tree
 
 showTree :: (Show a, Print a) => a -> IO ()

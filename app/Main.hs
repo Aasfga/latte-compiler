@@ -9,15 +9,15 @@ import System.Exit
 main :: IO ()
 main = do
   content <- getContents
-  case parse content of 
-    Left parseError -> do
+  case parse content of
+    Left latteError -> do
       hPutStrLn stderr "ERROR\n"
-      putStrLn parseError
+      print latteError
       exitWith $ ExitFailure 1
-    Right abstractSyntax -> 
+    Right abstractSyntax ->
       case runAnalyzer abstractSyntax of
-        Left msg -> do
+        Left latteError -> do
           hPutStrLn stderr "ERROR\n"
-          putStrLn msg
+          print latteError
           exitWith $ ExitFailure 1
         Right _ -> hPutStrLn stderr "OK\n"
