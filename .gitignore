@@ -27,4 +27,4 @@ cabal.project.local~
 **/latte.cabal
 **/bin
 latte
-latte.tar.gz
+latte-compiler.tar.gz
