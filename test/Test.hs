@@ -1,15 +1,14 @@
 import Test.Tasty
 import Test.Tasty.HUnit
-
+import IntegrationTests.Generator
+import IntegrationTests.AnalyzerTest
 import Data.List
 import Data.Ord
 
-
 main :: IO ()
-main = defaultMain tests
-
-tests :: TestTree
-tests = testGroup "Tests" [unitTests]
+main = do
+    analyzerTests <- integrationTestGenerator analyzerIntegrationTest "Analyzer"
+    defaultMain analyzerTests
 
 
 unitTests = testGroup "Unit tests"
