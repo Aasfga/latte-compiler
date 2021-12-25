@@ -16,9 +16,3 @@ parse string =
   case _parse string of
     Bad msg -> Left $ ParserError msg
     Ok tree -> Right $ convert tree
-
-showTree :: (Show a, Print a) => a -> IO ()
-showTree tree
- = do
-      putStrLn $ "\n[Abstract Syntax]\n\n" ++ show tree
-      putStrLn $ "\n[Linearized tree]\n\n" ++ printTree tree

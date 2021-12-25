@@ -1,11 +1,11 @@
 module Parser.Converter where
 
-import Parser.BnfcParser.AbsLatte as Src
-import AbstractSyntax.Definitions as Dest
+import qualified Parser.BnfcParser.AbsLatte as Src
+import qualified AbstractSyntax.Definitions as Dest
 
-convertPosition:: Src.BNFC'Position -> Dest.Position
+convertPosition :: Src.BNFC'Position -> Dest.Position
 convertPosition (Just (line, column)) = Dest.Position line column
-convertPosition Nothing = Dest.NoPosition 
+convertPosition Nothing = Dest.NoPosition
 
 convertProgram :: Src.Program' a -> Dest.Program a
 convertProgram (Src.Program a functions) = 
@@ -24,7 +24,7 @@ convertType (Src.Fun _ retType argTypes) =
   Dest.Fun (convertType retType) (map convertType argTypes)
 
 convertIdent :: Src.Ident -> String
-convertIdent (Ident ident) = ident
+convertIdent (Src.Ident ident) = ident
 
 convertArgument :: Src.Argument' a -> Dest.Argument a
 convertArgument (Src.Argument a _type ident) = 
@@ -64,15 +64,15 @@ convertExpression :: Src.Expr' a -> Dest.Expression a
 convertExpression (Src.Var a ident) = 
   Dest.Variable a (convertIdent ident)
 convertExpression (Src.LitInt a value) = 
-  Dest.Value a (IntValue $ fromIntegral value)
+  Dest.Value a (Dest.IntValue $ fromIntegral value)
 convertExpression (Src.LitTrue a) = 
-  Dest.Value a (BoolValue True)
+  Dest.Value a (Dest.BoolValue True)
 convertExpression (Src.LitFalse a) = 
-  Dest.Value a (BoolValue False)
+  Dest.Value a (Dest.BoolValue False)
 convertExpression (Src.App a ident exprs) =
   Dest.Application a (convertIdent ident) (map convertExpression exprs)
 convertExpression (Src.String a value) = 
-  Dest.Value a (StringValue value)
+  Dest.Value a (Dest.StringValue value)
 convertExpression (Src.Neg a expr) = 
   Dest.Neg a (convertExpression expr)
 convertExpression (Src.Not a expr) = 
@@ -112,5 +112,5 @@ convertDeclaration (Src.NoInit a ident) =
 convertDeclaration (Src.Init a ident expr) = 
   Dest.Init a (convertIdent ident) (convertExpression expr)
 
-convert :: Src.Program -> Dest.Program Position
+convert :: Src.Program -> Dest.Program Dest.Position
 convert = convertProgram . fmap convertPosition
