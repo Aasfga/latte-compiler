@@ -2,14 +2,20 @@ module IntegrationTests.AnalyzerTest where
 
 import Errors ( LatteError )
 import Parser.Parser ( parse )
-import Analyzer.Analyzer ( runAnalyzer )
 import Data.Maybe ( isJust, isNothing )
 import IntegrationTests.Generator (IntegrationTest)
+import IntermediateCode.Transformer
+import Control.Monad.Except
+import Types
 
-runner :: String -> Either LatteError ()
-runner code = do
-  ast <- parse code
-  runAnalyzer ast
+runner :: String -> Either (LatteError, Position) ()
+runner code = 
+  case parse code of
+    Left error -> throwError (error, NoPosition)
+    Right ast -> do
+      transformToQuadruples ast
+      return ()
+
 
 analyzerIntegrationTest :: IntegrationTest
 analyzerIntegrationTest (code, output) = 

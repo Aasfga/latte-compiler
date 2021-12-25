@@ -29,6 +29,7 @@ dependencies:
 - filepath
 - text
 - containers
+- transformers
 - microlens-platform
 
 library:

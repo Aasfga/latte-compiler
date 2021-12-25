@@ -1,17 +1,13 @@
 module Errors where
 import Data.List
-import AbstractSyntax.Definitions
 import Types
 
 data LatteError 
   = ParserError String
-  | AnalyzerError AnalyzerError
-  | GeneratorError Int
-  deriving (Show)
-
-data AnalyzerError 
-  = SymbolNotFound Ident
-  | SymbolInScope Ident Type
+  | InternalCompilerError String 
+  -- Analyzer errors
+  | SymbolNotFound Ident
+  | SymbolInScope Ident
   | FunctionNotFound Ident
   | TypeMissmatchApplication Ident [Type] [Type] 
   | TypeMissmatchUnaryOperator Type String 
@@ -21,13 +17,13 @@ data AnalyzerError
   | TypeMissmatchIf Type
   | TypeMissmatchReturn Ident Type Type
   | MissingReturn Ident Type
-  | InternalAnalyzerError String
-  | IntegerOutOfBound Int
+  | IntegerOutOfBound Integer
+  -- Generator errors
 
-instance Show AnalyzerError where   
+instance Show LatteError where   
   show (SymbolNotFound ident) = 
     "Symbol " ++ ident ++ " not found"
-  show (SymbolInScope ident _type) = 
+  show (SymbolInScope ident) = 
     "Symbol '" ++ ident ++ "' is already defined"
   show (FunctionNotFound ident) = 
     "Function " ++ ident ++ " not found"
@@ -57,17 +53,8 @@ instance Show AnalyzerError where
     "Found: " ++ show found
   show (MissingReturn ident _type) = 
     "Function " ++ ident ++ " should return value of type " ++ show _type ++ " but returns nothing"
-  show (InternalAnalyzerError msg) = 
-    "Internal analyzer error. " ++ msg
   show (IntegerOutOfBound x) = 
     "Integer " ++ show x ++ " is out of bound"  
-
-data GeneratorError
-  = InternalGeneratorError String 
-  | NotInFunctionContextError
-
-instance Show GeneratorError where 
-  show (InternalGeneratorError msg) = 
-    "Internal generator error. " ++ msg
-  show NotInFunctionContextError =
-    "Internal generator error. Generator isn't in function context but tries to modify it"
+  show (InternalCompilerError msg) = 
+    "Internal compiler error. " ++ msg
+    

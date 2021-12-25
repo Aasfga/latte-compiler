@@ -1,40 +1,41 @@
 module Parser.Converter where
 
-import Parser.BnfcParser.AbsLatte as Src
-import AbstractSyntax.Definitions as Dest
+import qualified Parser.BnfcParser.AbsLatte as Src
+import qualified IntermediateCode.Definitions.AbstractSyntaxTree as Dest
+import qualified Types as Types
 
-convertPosition:: Src.BNFC'Position -> Dest.Position
-convertPosition (Just (line, column)) = Dest.Position line column
-convertPosition Nothing = Dest.NoPosition 
+convertPosition :: Src.BNFC'Position -> Types.Position
+convertPosition (Just (line, column)) = Types.Position line column
+convertPosition Nothing = Types.NoPosition
 
-convertProgram :: Src.Program' a -> Dest.Program a
+convertProgram :: Src.Program' a -> Dest.Program' a
 convertProgram (Src.Program a functions) = 
   Dest.Program a (map convertFunction functions)
 
-convertFunction :: Src.Function' a -> Dest.Function a
+convertFunction :: Src.Function' a -> Dest.GlobalSymbol' a
 convertFunction (Src.Function a _type ident arguments block) = 
   Dest.Function a (convertType _type) (convertIdent ident) (map convertArgument arguments) (convertBlock block)
 
-convertType :: Src.Type' a -> Dest.Type
-convertType (Src.Int _) = Dest.Int
-convertType (Src.Str _) = Dest.String
-convertType (Src.Bool _) = Dest.Bool
-convertType (Src.Void _) = Dest.Void
+convertType :: Src.Type' a -> Types.Type
+convertType (Src.Int _) = Types.Int
+convertType (Src.Str _) = Types.String
+convertType (Src.Bool _) = Types.Bool
+convertType (Src.Void _) = Types.Void
 convertType (Src.Fun _ retType argTypes) = 
-  Dest.Fun (convertType retType) (map convertType argTypes)
+  Types.Function (convertType retType) (map convertType argTypes)
 
 convertIdent :: Src.Ident -> String
-convertIdent (Ident ident) = ident
+convertIdent (Src.Ident ident) = ident
 
-convertArgument :: Src.Argument' a -> Dest.Argument a
-convertArgument (Src.Argument a _type ident) = 
-  Dest.Argument a (convertType _type) (convertIdent ident)
+convertArgument :: Src.Argument' a -> Types.Argument
+convertArgument (Src.Argument _ _type ident) = 
+  Types.Argument (convertType _type) (convertIdent ident)
   
-convertBlock :: Src.Block' a -> Dest.Block a
+convertBlock :: Src.Block' a -> Dest.Block' a
 convertBlock (Src.Block a statements) = 
   Dest.Block a (map convertStatement statements)
 
-convertStatement :: Src.Statement' a -> Dest.Statement a
+convertStatement :: Src.Statement' a -> Dest.Statement' a
 convertStatement (Src.Empty a) = 
   Dest.Empty a
 convertStatement (Src.InnerBlock a block) = 
@@ -60,19 +61,19 @@ convertStatement (Src.While a expr statement) =
 convertStatement (Src.SExp a expr) =
   Dest.Expression a (convertExpression expr)
  
-convertExpression :: Src.Expr' a -> Dest.Expression a
+convertExpression :: Src.Expr' a -> Dest.Expression' a
 convertExpression (Src.Var a ident) = 
   Dest.Variable a (convertIdent ident)
 convertExpression (Src.LitInt a value) = 
-  Dest.Value a (IntValue $ fromIntegral value)
+  Dest.Value a (Dest.IntegerValue value)
 convertExpression (Src.LitTrue a) = 
-  Dest.Value a (BoolValue True)
+  Dest.Value a (Dest.BoolValue True)
 convertExpression (Src.LitFalse a) = 
-  Dest.Value a (BoolValue False)
+  Dest.Value a (Dest.BoolValue False)
 convertExpression (Src.App a ident exprs) =
   Dest.Application a (convertIdent ident) (map convertExpression exprs)
 convertExpression (Src.String a value) = 
-  Dest.Value a (StringValue value)
+  Dest.Value a (Dest.StringValue value)
 convertExpression (Src.Neg a expr) = 
   Dest.Neg a (convertExpression expr)
 convertExpression (Src.Not a expr) = 
@@ -84,33 +85,33 @@ convertExpression (Src.Add a first op second) =
 convertExpression (Src.Rel a first op second) = 
   Dest.Compare a (convertExpression first) (convertRelOp op) (convertExpression second)
 convertExpression (Src.And a first second) = 
-  Dest.Operation a (convertExpression first) Dest.And (convertExpression second)
+  Dest.Operation a (convertExpression first) Types.And (convertExpression second)
 convertExpression (Src.Or a first second) = 
-  Dest.Operation a (convertExpression first) Dest.Or (convertExpression second)
+  Dest.Operation a (convertExpression first) Types.Or (convertExpression second)
 
 
-convertMulOp :: Src.MulOp' a -> Dest.Operation
-convertMulOp (Src.Times _) = Dest.Times
-convertMulOp (Src.Div _) = Dest.Div
-convertMulOp (Src.Mod _) = Dest.Mod
+convertMulOp :: Src.MulOp' a -> Types.Operation
+convertMulOp (Src.Times _) = Types.Times
+convertMulOp (Src.Div _) = Types.Div
+convertMulOp (Src.Mod _) = Types.Mod
 
-convertAddOp :: Src.AddOp' a -> Dest.Operation
-convertAddOp (Src.Plus _) = Dest.Plus  
-convertAddOp (Src.Minus _) = Dest.Minus
+convertAddOp :: Src.AddOp' a -> Types.Operation
+convertAddOp (Src.Plus _) = Types.Plus  
+convertAddOp (Src.Minus _) = Types.Minus
 
-convertRelOp :: Src.RelOp' a -> Dest.CompareOperation
-convertRelOp (Src.LTH _) = Dest.LTH
-convertRelOp (Src.LE _) = Dest.LE
-convertRelOp (Src.GTH _) = Dest.GTH
-convertRelOp (Src.GE _) = Dest.GE
-convertRelOp (Src.EQU _) = Dest.EQU
-convertRelOp (Src.NE _) = Dest.NE
+convertRelOp :: Src.RelOp' a -> Types.CompareOperation
+convertRelOp (Src.LTH _) = Types.LTH
+convertRelOp (Src.LE _) = Types.LE
+convertRelOp (Src.GTH _) = Types.GTH
+convertRelOp (Src.GE _) = Types.GE
+convertRelOp (Src.EQU _) = Types.EQU
+convertRelOp (Src.NE _) = Types.NE
 
-convertDeclaration :: Src.Declaration' a -> Dest.Declaration a
+convertDeclaration :: Src.Declaration' a -> Dest.Declaration' a
 convertDeclaration (Src.NoInit a ident) = 
   Dest.NoInit a (convertIdent ident)
 convertDeclaration (Src.Init a ident expr) = 
   Dest.Init a (convertIdent ident) (convertExpression expr)
 
-convert :: Src.Program -> Dest.Program Position
+convert :: Src.Program -> Dest.Program
 convert = convertProgram . fmap convertPosition
