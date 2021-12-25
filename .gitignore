@@ -28,3 +28,5 @@ cabal.project.local~
 **/bin
 latte
 latte-compiler.tar.gz
+
+src/Parser/BnfcParser/**

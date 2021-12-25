@@ -1,19 +1,19 @@
-module Parser.Parser where 
+module Parser.Parser where
 
-import Parser.ParLatte ( pProgram, myLexer )
-import Parser.ErrM ( Err(Ok, Bad) )
+import Parser.BnfcParser.ParLatte ( pProgram, myLexer )
+import Parser.BnfcParser.ErrM
 import Parser.Converter ( convert )
-import qualified Parser.AbsLatte as AbsLatte
-import AbstractSyntax.Definitions ( Program )
-import Parser.PrintLatte ( Print, printTree )
+import qualified Parser.BnfcParser.AbsLatte as AbsLatte
+import AbstractSyntax.Definitions ( Program, Position )
+import Parser.BnfcParser.PrintLatte ( Print, printTree )
 import Errors
 
-_parse :: String -> Err (AbsLatte.Program ())
+_parse :: String -> Err AbsLatte.Program
 _parse string = pProgram (myLexer string)
 
-parse :: String -> Either LatteError (Program ())
-parse string = 
-  case _parse string of 
+parse :: String -> Either LatteError (Program Position)
+parse string =
+  case _parse string of
     Bad msg -> Left $ ParserError msg
     Ok tree -> Right $ convert tree
 

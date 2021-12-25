@@ -6,9 +6,9 @@ import Types
 
 -- Definitions
 
-data Position = Position { filename :: String, 
-                           lineNumber :: Int, 
-                           columnNumber :: Int }
+data Position 
+  = NoPosition
+  | Position { lineNumber :: Int, columnNumber :: Int }
   deriving (Eq, Ord, Show, Read)
 
 data Program a = Program a [Function a]

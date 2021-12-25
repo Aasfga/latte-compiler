@@ -1,0 +1,8 @@
+- ignore: { 
+    within: [
+      Parser.BnfcParser.AbsLatte
+      Parser.BnfcParser.ErrM
+      Parser.BnfcParser.PrintLatte
+      Parser.BnfcParser.SkelLatte
+    ]
+  }
