@@ -1,16 +1,9 @@
 module IntermediateCode.Definitions.AbstractSyntaxTree where
 
-import Data.List
-import Types
+import Types ( Ident, Type, Value, Operation, CompareOperation )
 
 
 -- Definitions
-
-data Position 
-  = NoPosition
-  | Position { lineNumber :: Int, columnNumber :: Int }
-  deriving (Eq, Ord, Show, Read)
-
 data Program a = Program a [Function a]
   deriving (Eq, Ord, Show, Read)
 
@@ -41,9 +34,6 @@ data Statement a
 data Declaration a = NoInit a Ident | Init a Ident (Expression a)
   deriving (Eq, Ord, Show, Read)
 
-data Type = Int | String | Bool | Void | Fun Type [Type]
-  deriving (Eq, Ord, Read)
-
 data Expression a
     = Variable a Ident
     | Value a Value
@@ -54,34 +44,8 @@ data Expression a
     | Compare a (Expression a) CompareOperation (Expression a)
   deriving (Eq, Ord, Show, Read)
 
-data Value 
-  = IntValue Int
-  | BoolValue Bool
-  | StringValue String
-  deriving (Eq, Ord, Show, Read)
 
-data CompareOperation 
-  = LTH 
-  | LE 
-  | GTH 
-  | GE 
-  | EQU 
-  | NE
-  deriving (Eq, Ord, Show, Read)
-
-data Operation 
-  = Plus 
-  | Minus 
-  | Times 
-  | Div 
-  | Mod 
-  | Or
-  | And
-  deriving (Eq, Ord, Read)
-
-
--- Functor instances
-
+-- Instances
 instance Functor Program where
   fmap f (Program a functions) = Program (f a) (map (fmap f) functions)
 
@@ -114,17 +78,6 @@ instance Functor Declaration where
         NoInit a ident -> NoInit (f a) ident
         Init a ident expr -> Init (f a) ident (fmap f expr)
 
-instance Show Type where
-  show Int = "int"
-  show String = "string"
-  show Bool = "bool"
-  show Void = "void"
-  show (Fun _type argTypes) = let
-      parsedArgTypes = intercalate " -> " $ map show argTypes
-      parsedType = show _type
-    in
-      "(" ++ parsedArgTypes ++ " -> " ++ parsedType ++ ")" 
-
 instance Functor Expression where
     fmap f x = case x of
         Variable a ident -> Variable (f a) ident
@@ -134,12 +87,3 @@ instance Functor Expression where
         Not a expr -> Not (f a) (fmap f expr)
         Operation a expr1 op expr2 -> Operation (f a) (fmap f expr1) op (fmap f expr2)
         Compare a expr1 op expr2 -> Compare (f a) (fmap f expr1) op (fmap f expr2)
-
-instance Show Operation where 
-  show Plus = "+"
-  show Minus = "-"
-  show Times = "*"
-  show Div = "/"
-  show Mod = "%"
-  show Or = "||"
-  show And = "&&"

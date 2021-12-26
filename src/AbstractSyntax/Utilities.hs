@@ -1,6 +1,7 @@
 module AbstractSyntax.Utilities where
 
-import AbstractSyntax.Definitions
+import IntermediateCode.Definitions.AbstractSyntaxTree
+import Types
 
 
 getArgumentType :: Argument a -> Type

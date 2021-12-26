@@ -1,7 +1,8 @@
 module Analyzer.ExpressionCalculator where
 
-import AbstractSyntax.Definitions
+import IntermediateCode.Definitions.AbstractSyntaxTree
 import AbstractSyntax.Utilities
+import Types
 
 
 

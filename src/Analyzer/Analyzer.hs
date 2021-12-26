@@ -1,7 +1,8 @@
 module Analyzer.Analyzer where
 
 import Analyzer.AnalyzerState
-import AbstractSyntax.Definitions
+import IntermediateCode.Definitions.AbstractSyntaxTree
+import Types
 import AbstractSyntax.Utilities
 import Control.Monad.State
 import Control.Monad.Except

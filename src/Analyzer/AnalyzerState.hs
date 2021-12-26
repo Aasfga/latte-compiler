@@ -1,6 +1,6 @@
 module Analyzer.AnalyzerState where
 
-import AbstractSyntax.Definitions
+import IntermediateCode.Definitions.AbstractSyntaxTree
 import qualified Data.Map as Map
 import Control.Monad.State
 -- import qualified Control.Monad.Except as Except

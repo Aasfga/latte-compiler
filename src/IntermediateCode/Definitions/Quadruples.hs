@@ -16,10 +16,8 @@ data QuadruplesCode
 data Function
   = EmptyFunction
   | Function {
-    _block :: [Block]
+    _block :: Map.Map Label [Quadruple]
   }
-
-type Block = [Quadruple]
 
 $(makeLenses ''QuadruplesCode)
 $(makeLenses ''Function)

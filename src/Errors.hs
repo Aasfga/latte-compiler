@@ -1,6 +1,5 @@
 module Errors where
 import Data.List
-import AbstractSyntax.Definitions
 import Types
 
 data LatteError 
