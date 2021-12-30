@@ -12,7 +12,7 @@ type SymbolInfo = Type
 type SymbolTable = Map.Map Ident [SymbolInfo]
 type Scope = [Ident]
 type AccessInfo = Bool
-type AnalyzerState = StateT (SymbolTable, [Scope], [AccessInfo], Type) (Either AnalyzerError)
+type AnalyzerState = StateT (SymbolTable, [Scope], [AccessInfo], Type) (Either LatteError)
 
 emptyAnalyzerState :: (SymbolTable, [Scope], [AccessInfo], Type)
 emptyAnalyzerState = (Map.empty, [], [], Int)
@@ -87,7 +87,7 @@ checkReturnType found = do
 addSymbol :: Ident -> Type -> AnalyzerState ()
 addSymbol ident _type = do
   canDefine <- canDefineSymbol ident
-  unless canDefine (throwError $ SymbolInScope ident _type)
+  unless canDefine (throwError $ SymbolInScope ident)
   modifyScope (ident:)
   modifySymbolTable $ Map.insertWith (++) ident [_type]
 

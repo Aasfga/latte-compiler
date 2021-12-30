@@ -12,7 +12,7 @@ import Errors
 _parse :: String -> Err AbsLatte.Program
 _parse string = pProgram (myLexer string)
 
-parse :: String -> Either LatteError (Program Position)
+parse :: String -> Either LatteError Program
 parse string =
   case _parse string of
     Bad msg -> Left $ ParserError msg

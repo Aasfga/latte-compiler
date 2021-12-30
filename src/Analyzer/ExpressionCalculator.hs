@@ -1,7 +1,6 @@
 module Analyzer.ExpressionCalculator where
 
 import IntermediateCode.Definitions.AbstractSyntaxTree
-import AbstractSyntax.Utilities
 import Types
 
 
@@ -23,7 +22,7 @@ calculateStringOperation :: Operation -> String -> String -> Maybe String
 calculateStringOperation Plus x y = Just $ x ++ y
 calculateStringOperation _ _ _ = Nothing
 
-calculateExpression :: Expression a -> Maybe Value
+calculateExpression :: Expression' a -> Maybe Value
 calculateExpression Variable {} = Nothing 
 calculateExpression (Value _ value) = Just value
 calculateExpression Application {} = Nothing 
@@ -55,7 +54,7 @@ calculateExpression (Compare  _ firstExpr op secondExpr) = do
     _ -> Nothing
 
 
-calculateBoolExpression :: Expression a -> Maybe Bool
+calculateBoolExpression :: Expression' a -> Maybe Bool
 calculateBoolExpression expression =
   case calculateExpression expression of
     Just (BoolValue value) -> Just value

@@ -5,19 +5,41 @@ import Lens.Micro.Platform hiding (element)
 import qualified Data.Map as Map
 import Types
 
-data Quadruple
+
+
+
+-- Definitions
+
+type QuadrupleResult = Int
+
+data Quadruple = Quadruple QuadrupleResult QuadrupleOperation
+
+data QuadrupleOperation
   = NOP
 
 data QuadruplesCode 
-  = Quadruples {
-    _functions :: Map.Map String Function
+  = QuadruplesCode {
+    _functions :: Map.Map String FunctionCode
   }
 
-data Function
-  = EmptyFunction
-  | Function {
-    _block :: Map.Map Label [Quadruple]
+data FunctionCode
+  = FunctionCode {
+    _blocks :: Map.Map Label [Quadruple],
+    _returnType :: Type,
+    _arguments :: [Argument]
   }
 
 $(makeLenses ''QuadruplesCode)
-$(makeLenses ''Function)
+$(makeLenses ''FunctionCode)
+
+
+-- Functions
+emptyQuadruplesCode :: QuadruplesCode
+emptyQuadruplesCode =
+  let 
+    functions = Map.empty
+  in
+    QuadruplesCode functions
+
+emptyFunction :: Type -> [Argument] -> FunctionCode
+emptyFunction retType args = FunctionCode Map.empty retType args

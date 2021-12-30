@@ -4,13 +4,9 @@ import Types
 
 data LatteError 
   = ParserError String
-  | AnalyzerError AnalyzerError
-  | GeneratorError Int
-  deriving (Show)
-
-data AnalyzerError 
-  = SymbolNotFound Ident
-  | SymbolInScope Ident Type
+  -- Analyzer errors
+  | SymbolNotFound Ident
+  | SymbolInScope Ident
   | FunctionNotFound Ident
   | TypeMissmatchApplication Ident [Type] [Type] 
   | TypeMissmatchUnaryOperator Type String 
@@ -22,11 +18,14 @@ data AnalyzerError
   | MissingReturn Ident Type
   | InternalAnalyzerError String
   | IntegerOutOfBound Int
+  -- Generator errors
+  | InternalGeneratorError String 
+  | NotInFunctionContextError
 
-instance Show AnalyzerError where   
+instance Show LatteError where   
   show (SymbolNotFound ident) = 
     "Symbol " ++ ident ++ " not found"
-  show (SymbolInScope ident _type) = 
+  show (SymbolInScope ident) = 
     "Symbol '" ++ ident ++ "' is already defined"
   show (FunctionNotFound ident) = 
     "Function " ++ ident ++ " not found"
@@ -60,13 +59,8 @@ instance Show AnalyzerError where
     "Internal analyzer error. " ++ msg
   show (IntegerOutOfBound x) = 
     "Integer " ++ show x ++ " is out of bound"  
-
-data GeneratorError
-  = InternalGeneratorError String 
-  | NotInFunctionContextError
-
-instance Show GeneratorError where 
   show (InternalGeneratorError msg) = 
     "Internal generator error. " ++ msg
   show NotInFunctionContextError =
     "Internal generator error. Generator isn't in function context but tries to modify it"
+    

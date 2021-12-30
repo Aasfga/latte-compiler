@@ -28,6 +28,9 @@ data Value
   | StringValue String
   deriving (Eq, Ord, Show, Read)
 
+data Argument = Argument Type Ident
+  deriving (Eq, Ord, Show, Read)
+
 data CompareOperation 
   = LTH 
   | LE 
@@ -75,3 +78,63 @@ instance Show CompareOperation where
   show GE = ">="
   show EQU = "=="
   show NE = "!="
+
+
+-- Functions
+isStringOperation :: Operation -> Bool
+isStringOperation Plus = True
+isStringOperation _ = False
+
+isIntOperation :: Operation -> Bool
+isIntOperation Plus = True
+isIntOperation Minus = True
+isIntOperation Times = True
+isIntOperation Div = True
+isIntOperation Mod = True
+isIntOperation _ = False
+
+isBoolOperation :: Operation -> Bool
+isBoolOperation And = True
+isBoolOperation Or = True
+isBoolOperation _ = False
+
+isCorrectCompare :: Type -> Type -> Bool
+isCorrectCompare Int Int = True
+isCorrectCompare String String = True
+isCorrectCompare Bool Bool = True
+isCorrectCompare _ _ = False
+
+isInt :: Type -> Bool
+isInt Int = True
+isInt _ = False
+
+isBool :: Type -> Bool
+isBool Bool = True
+isBool _ = False
+
+getCompareFunction :: Ord a => CompareOperation -> a -> a -> Bool
+getCompareFunction LTH = (<)
+getCompareFunction LE = (<=)
+getCompareFunction GTH  = (>)
+getCompareFunction GE = (>=)
+getCompareFunction EQU = (==)
+getCompareFunction NE = (/=)
+
+minInt :: Int
+minInt = -2147483648
+
+maxInt :: Int
+maxInt = 2147483647
+
+libraryFunctionsOld :: [(String, Type)]
+libraryFunctionsOld = [
+    ("printInt", Fun Void [Int]),
+    ("printString", Fun Void [String]),
+    ("error", Fun Void []),
+    ("readInt", Fun Int []),
+    ("readString", Fun String [])
+  ]
+  
+-- Functions
+getArgumentType :: Argument -> Type
+getArgumentType (Argument _type _) = _type

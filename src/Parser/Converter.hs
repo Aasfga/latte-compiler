@@ -8,11 +8,11 @@ convertPosition :: Src.BNFC'Position -> Types.Position
 convertPosition (Just (line, column)) = Types.Position line column
 convertPosition Nothing = Types.NoPosition
 
-convertProgram :: Src.Program' a -> Dest.Program a
+convertProgram :: Src.Program' a -> Dest.Program' a
 convertProgram (Src.Program a functions) = 
   Dest.Program a (map convertFunction functions)
 
-convertFunction :: Src.Function' a -> Dest.Function a
+convertFunction :: Src.Function' a -> Dest.Function' a
 convertFunction (Src.Function a _type ident arguments block) = 
   Dest.Function a (convertType _type) (convertIdent ident) (map convertArgument arguments) (convertBlock block)
 
@@ -27,15 +27,15 @@ convertType (Src.Fun _ retType argTypes) =
 convertIdent :: Src.Ident -> String
 convertIdent (Src.Ident ident) = ident
 
-convertArgument :: Src.Argument' a -> Dest.Argument a
-convertArgument (Src.Argument a _type ident) = 
-  Dest.Argument a (convertType _type) (convertIdent ident)
+convertArgument :: Src.Argument' a -> Types.Argument
+convertArgument (Src.Argument _ _type ident) = 
+  Types.Argument (convertType _type) (convertIdent ident)
   
-convertBlock :: Src.Block' a -> Dest.Block a
+convertBlock :: Src.Block' a -> Dest.Block' a
 convertBlock (Src.Block a statements) = 
   Dest.Block a (map convertStatement statements)
 
-convertStatement :: Src.Statement' a -> Dest.Statement a
+convertStatement :: Src.Statement' a -> Dest.Statement' a
 convertStatement (Src.Empty a) = 
   Dest.Empty a
 convertStatement (Src.InnerBlock a block) = 
@@ -61,7 +61,7 @@ convertStatement (Src.While a expr statement) =
 convertStatement (Src.SExp a expr) =
   Dest.Expression a (convertExpression expr)
  
-convertExpression :: Src.Expr' a -> Dest.Expression a
+convertExpression :: Src.Expr' a -> Dest.Expression' a
 convertExpression (Src.Var a ident) = 
   Dest.Variable a (convertIdent ident)
 convertExpression (Src.LitInt a value) = 
@@ -107,11 +107,11 @@ convertRelOp (Src.GE _) = Types.GE
 convertRelOp (Src.EQU _) = Types.EQU
 convertRelOp (Src.NE _) = Types.NE
 
-convertDeclaration :: Src.Declaration' a -> Dest.Declaration a
+convertDeclaration :: Src.Declaration' a -> Dest.Declaration' a
 convertDeclaration (Src.NoInit a ident) = 
   Dest.NoInit a (convertIdent ident)
 convertDeclaration (Src.Init a ident expr) = 
   Dest.Init a (convertIdent ident) (convertExpression expr)
 
-convert :: Src.Program -> Dest.Program Types.Position
+convert :: Src.Program -> Dest.Program
 convert = convertProgram . fmap convertPosition

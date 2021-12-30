@@ -3,7 +3,6 @@ module Analyzer.Analyzer where
 import Analyzer.AnalyzerState
 import IntermediateCode.Definitions.AbstractSyntaxTree
 import Types
-import AbstractSyntax.Utilities
 import Control.Monad.State
 import Control.Monad.Except
 import Errors
@@ -18,7 +17,7 @@ analyzeOperation Bool op Bool =
   if isBoolOperation op then Just Bool else Nothing
 analyzeOperation _ _ _ = Nothing
 
-analyzeExpression :: Expression a -> AnalyzerState Type
+analyzeExpression :: Expression' a -> AnalyzerState Type
 analyzeExpression (Variable _ ident) = 
   getSymbolType ident
 analyzeExpression (Value _ value) = 
@@ -56,14 +55,14 @@ analyzeExpression (Compare _ firstExpr _ secondExpr) = do
   unless (isCorrectCompare firstType secondType) (throwError $ TypeMissmatchCompare firstType secondType)
   return Bool
 
-analyzeDeclaration :: Declaration a -> Type -> AnalyzerState ()
+analyzeDeclaration :: Declaration' a -> Type -> AnalyzerState ()
 analyzeDeclaration (NoInit _ ident) _type = addSymbol ident _type
 analyzeDeclaration (Init _ ident expr) _type = do
   exprType <- analyzeExpression expr
   unless (exprType == _type) (throwError $ TypeMissmatchAssigment _type exprType)
   addSymbol ident _type 
 
-analyzeStatement :: Statement a -> AnalyzerState Bool
+analyzeStatement :: Statement' a -> AnalyzerState Bool
 analyzeStatement (Empty _) = 
   return False
 analyzeStatement (InnerBlock _ block) = do
@@ -124,15 +123,15 @@ analyzeStatement (Expression _ expression) = do
   _ <- analyzeExpression expression
   return False
 
-analyzeBlock :: Block a -> [Argument a] -> AnalyzerState Bool
+analyzeBlock :: Block' a -> [Argument] -> AnalyzerState Bool
 analyzeBlock (Block _ statements) arguments = do
   newScope
-  mapM_ (\(Argument _ t i) -> addSymbol i t) arguments
+  mapM_ (\(Argument t i) -> addSymbol i t) arguments
   returnList <- mapM analyzeStatement statements
   removeScope
   return $ or returnList
 
-analyzeFunction :: Function a -> AnalyzerState ()
+analyzeFunction :: Function' a -> AnalyzerState ()
 analyzeFunction (Function _ _type ident arguments block) = do 
   setFunctionType _type
   isReturn <- analyzeBlock block arguments
@@ -140,20 +139,20 @@ analyzeFunction (Function _ _type ident arguments block) = do
     Void -> return ()
     _ -> unless isReturn (throwError $ MissingReturn ident _type)
 
-addFunctionsToScope :: Function a -> AnalyzerState ()
+addFunctionsToScope :: Function' a -> AnalyzerState ()
 addFunctionsToScope (Function _ _type ident arguments _) = do
   let argumentTypes = map getArgumentType arguments
   addSymbol ident (Fun _type argumentTypes)
 
 addLibraryFunctions :: AnalyzerState ()
-addLibraryFunctions = mapM_ (uncurry addSymbol) libraryFunctions 
+addLibraryFunctions = mapM_ (uncurry addSymbol) libraryFunctionsOld
  
 checkIfMainExists :: AnalyzerState ()
 checkIfMainExists = do
   mainType <- getSymbolType "main"
   unless (mainType == Fun Int []) (throwError $ SymbolNotFound "main")
 
-analyzeProgram :: Program a -> AnalyzerState ()
+analyzeProgram :: Program' a -> AnalyzerState ()
 analyzeProgram (Program _ functions) = do
   newScope
   addLibraryFunctions
@@ -162,11 +161,11 @@ analyzeProgram (Program _ functions) = do
   mapM_ analyzeFunction functions
   removeScope
 
-runAnalyzer :: Program a -> Either LatteError ()
+runAnalyzer :: Program' a -> Either LatteError ()
 runAnalyzer program = 
   let
     initialState = emptyAnalyzerState
   in case runStateT (analyzeProgram program) initialState of
-    Left analyzerError -> Left $ AnalyzerError analyzerError
+    Left analyzerError -> Left $ analyzerError
     Right _ -> Right ()
 

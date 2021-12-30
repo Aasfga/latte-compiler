@@ -1,64 +1,64 @@
 module IntermediateCode.Definitions.AbstractSyntaxTree where
 
-import Types ( Ident, Type, Value, Operation, CompareOperation )
+import Types ( Argument, Position, Ident, Type, Value, Operation, CompareOperation )
 
 
 -- Definitions
-data Program a = Program a [Function a]
+type Program = Program' Position
+data Program' a = Program a [Function' a]
   deriving (Eq, Ord, Show, Read)
 
-data Function a = Function a Type Ident [Argument a] (Block a)
+type Function = Function' Position
+data Function' a = Function a Type Ident [Argument] (Block' a)
   deriving (Eq, Ord, Show, Read)
 
-data Argument a = Argument a Type Ident
+type Block = Block' Position
+data Block' a = Block a [Statement' a]
   deriving (Eq, Ord, Show, Read)
 
-data Block a = Block a [Statement a]
-  deriving (Eq, Ord, Show, Read)
-
-data Statement a
+type Statement = Statement' Position
+data Statement' a
     = Empty a
-    | InnerBlock a (Block a)
-    | Declaration a Type [Declaration a]
-    | Assigment a Ident (Expression a)
+    | InnerBlock a (Block' a)
+    | Declaration a Type [Declaration' a]
+    | Assigment a Ident (Expression' a)
     | Increment a Ident
     | Decrement a Ident
-    | Return a (Expression a)
+    | Return a (Expression' a)
     | VoidReturn a
-    | If a (Expression a) (Statement a)
-    | IfElse a (Expression a) (Statement a) (Statement a)
-    | While a (Expression a) (Statement a)
-    | Expression a (Expression a)
+    | If a (Expression' a) (Statement' a)
+    | IfElse a (Expression' a) (Statement' a) (Statement' a)
+    | While a (Expression' a) (Statement' a)
+    | Expression a (Expression' a)
   deriving (Eq, Ord, Show, Read)
 
-data Declaration a = NoInit a Ident | Init a Ident (Expression a)
+type Declaration = Declaration' Position
+data Declaration' a = NoInit a Ident | Init a Ident (Expression' a)
   deriving (Eq, Ord, Show, Read)
 
-data Expression a
+type Expression = Expression' Position
+data Expression' a
     = Variable a Ident
     | Value a Value
-    | Application a Ident [Expression a]
-    | Neg a (Expression a)
-    | Not a (Expression a)
-    | Operation a (Expression a) Operation (Expression a)
-    | Compare a (Expression a) CompareOperation (Expression a)
+    | Application a Ident [Expression' a]
+    | Neg a (Expression' a)
+    | Not a (Expression' a)
+    | Operation a (Expression' a) Operation (Expression' a)
+    | Compare a (Expression' a) CompareOperation (Expression' a)
   deriving (Eq, Ord, Show, Read)
 
 
 -- Instances
-instance Functor Program where
+instance Functor Program' where
   fmap f (Program a functions) = Program (f a) (map (fmap f) functions)
 
-instance Functor Function where
-  fmap f (Function a _type ident arguments block) = Function (f a) _type ident (map (fmap f) arguments) (fmap f block)
+instance Functor Function' where
+  fmap f (Function a _type ident arguments block) = Function (f a) _type ident arguments (fmap f block)
 
-instance Functor Argument where
-  fmap f (Argument a _type ident) = Argument (f a) _type ident
-
-instance Functor Block where
+instance Functor Block' where
   fmap f (Block a statements) = Block (f a) (map (fmap f) statements)
 
-instance Functor Statement where
+instance Functor Statement' where
   fmap f x = case x of
     Empty a -> Empty (f a)
     InnerBlock a block -> InnerBlock (f a) (fmap f block)
@@ -73,12 +73,12 @@ instance Functor Statement where
     While a expr statement -> While (f a) (fmap f expr) (fmap f statement)
     Expression a expr -> Expression (f a) (fmap f expr)
 
-instance Functor Declaration where
+instance Functor Declaration' where
     fmap f x = case x of
         NoInit a ident -> NoInit (f a) ident
         Init a ident expr -> Init (f a) ident (fmap f expr)
 
-instance Functor Expression where
+instance Functor Expression' where
     fmap f x = case x of
         Variable a ident -> Variable (f a) ident
         Value a value -> Value (f a) value
