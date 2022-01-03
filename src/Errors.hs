@@ -4,6 +4,7 @@ import Types
 
 data LatteError 
   = ParserError String
+  | InternalCompilerError String 
   -- Analyzer errors
   | SymbolNotFound Ident
   | SymbolInScope Ident
@@ -16,11 +17,8 @@ data LatteError
   | TypeMissmatchIf Type
   | TypeMissmatchReturn Ident Type Type
   | MissingReturn Ident Type
-  | InternalAnalyzerError String
   | IntegerOutOfBound Int
   -- Generator errors
-  | InternalGeneratorError String 
-  | NotInFunctionContextError
 
 instance Show LatteError where   
   show (SymbolNotFound ident) = 
@@ -55,12 +53,8 @@ instance Show LatteError where
     "Found: " ++ show found
   show (MissingReturn ident _type) = 
     "Function " ++ ident ++ " should return value of type " ++ show _type ++ " but returns nothing"
-  show (InternalAnalyzerError msg) = 
-    "Internal analyzer error. " ++ msg
   show (IntegerOutOfBound x) = 
     "Integer " ++ show x ++ " is out of bound"  
-  show (InternalGeneratorError msg) = 
-    "Internal generator error. " ++ msg
-  show NotInFunctionContextError =
-    "Internal generator error. Generator isn't in function context but tries to modify it"
+  show (InternalCompilerError msg) = 
+    "Internal compiler error. " ++ msg
     

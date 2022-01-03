@@ -9,22 +9,27 @@ import Types
 
 
 -- Definitions
+type TemporaryRegister = Int
+type BlockNumber = Int
 
-type QuadrupleResult = Int
+data QuadrupleArgument
+  = TemporaryRegister TemporaryRegister
+  | Value Value
 
-data Quadruple = Quadruple QuadrupleResult QuadrupleOperation
+data Quadruple 
+  = QuadrupleOperation TemporaryRegister QuadrupleOperation
 
 data QuadrupleOperation
-  = NOP
+  = ARG_INIT Int Type
 
 data QuadruplesCode 
   = QuadruplesCode {
-    _functions :: Map.Map String FunctionCode
+    _functions :: Map.Map Label FunctionCode
   }
 
 data FunctionCode
   = FunctionCode {
-    _blocks :: Map.Map Label [Quadruple],
+    _blocks :: Map.Map BlockNumber [Quadruple],
     _returnType :: Type,
     _arguments :: [Argument]
   }
@@ -43,3 +48,6 @@ emptyQuadruplesCode =
 
 emptyFunction :: Type -> [Argument] -> FunctionCode
 emptyFunction retType args = FunctionCode Map.empty retType args
+
+getOperationType :: QuadrupleOperation -> Type
+getOperationType (ARG_INIT _ _type) = _type

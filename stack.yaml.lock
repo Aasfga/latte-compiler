@@ -46,6 +46,13 @@ packages:
       sha256: 03feb7c21cd302e6f398cad3f33437dbcbedad52c255d7032903f03fbbab8065
   original:
     hackage: shelly-1.9.0
+- completed:
+    hackage: transformers-0.5.6.2@sha256:6c959d14430f4deffb99579ba019de07c3d852a2122b6f449344386c7d75ff1d,3172
+    pantry-tree:
+      size: 2512
+      sha256: c79246ba7d61392c2f214376fed3c2a05e4b2649b93ec2c849a86493f278ace0
+  original:
+    hackage: transformers-0.5.6.2
 snapshots:
 - completed:
     size: 532386

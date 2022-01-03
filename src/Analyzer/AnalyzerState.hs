@@ -31,13 +31,13 @@ popSymbol ident = do
   let symbols = Map.lookup ident table
   case symbols of
     Just (_:xs) -> modifySymbolTable $ Map.insert ident xs
-    _ -> throwError $ InternalAnalyzerError ("No symbol for ident " ++ ident)
+    _ -> throwError $ InternalCompilerError ("No symbol for ident " ++ ident)
 
 removeScope :: AnalyzerState ()
 removeScope = do
   (x, scopes, z, t) <- get
   case scopes of 
-    [] -> throwError $ InternalAnalyzerError "No scope defined"
+    [] -> throwError $ InternalCompilerError "No scope defined"
     (scope:rest) -> do
       put (x, rest, z, t)
       mapM_ popSymbol scope
@@ -46,14 +46,14 @@ currentScope :: AnalyzerState Scope
 currentScope = do
   (_, scopes, _, _) <- get
   case scopes of 
-    [] -> throwError $ InternalAnalyzerError "No scope defined"
+    [] -> throwError $ InternalCompilerError "No scope defined"
     (scope:_) -> return scope
 
 modifyScope :: (Scope -> Scope) -> AnalyzerState ()
 modifyScope f = do
   (x, scopes, z, t) <- get
   case scopes of 
-    [] -> throwError $ InternalAnalyzerError "No scope defined"
+    [] -> throwError $ InternalCompilerError "No scope defined"
     (y:ys) -> put (x, f y:ys, z, t)
 
 modifySymbolTable :: (SymbolTable -> SymbolTable) -> AnalyzerState ()
