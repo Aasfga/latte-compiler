@@ -14,21 +14,16 @@ data PreQuadruple
   = Quadruple Quadruple
   | PhiPlaceholder Ident
 
-type VariableLocation 
+type Location 
   = QuadrupleArgument
-
-data VariableInfo 
-  = VariableInfo {
-    _variableType :: Type,
-    _location :: VariableLocation 
-  }
 
 data BlockContext
   = BlockContext {
     _blockNumber :: Int,
-    _variablesLocation :: Map.Map Ident VariableLocation,
+    _finalVariables :: Map.Map Ident QuadrupleArgument,
     _previousBlocks :: [BlockNumber],
     _nextBlocks :: [BlockNumber],
+    _isAlive :: Bool,
     _code :: [PreQuadruple]
   }
 
@@ -39,10 +34,9 @@ data FunctionContext
     _arguments  :: [Argument],
     _blockCounter :: Int,
     _registerCounter :: Int,
-    _scope :: [[Ident]],
-    _variables :: Map.Map Ident [VariableInfo],
-    _resultTypes :: Map.Map TemporaryRegister Type,
-    _currentBlockNumber :: BlockNumber,
+    _scopes :: [[Ident]],
+    _variables :: Map.Map Ident [QuadrupleArgument],
+    _currentBlockNumber :: Maybe BlockNumber,
     _blocks :: Map.Map Int BlockContext
   }
 
@@ -50,7 +44,7 @@ type GlobalContext = QuadruplesCode
 
 $(makeLenses ''BlockContext)
 $(makeLenses ''FunctionContext)
-$(makeLenses ''VariableInfo)
+-- $(makeLenses ''VariableInfo)
 
 type GlobalTransformer = StateT GlobalContext (Either LatteError)
 type FunctionTransformer = StateT FunctionContext GlobalTransformer
@@ -59,8 +53,11 @@ emptyGlobalContext :: QuadruplesCode
 emptyGlobalContext = emptyQuadruplesCode
 
 emptyBlockContext :: BlockNumber -> BlockContext
-emptyBlockContext  block = BlockContext block Map.empty [] [] []
+emptyBlockContext block = BlockContext block Map.empty [] [] True []
 
 emptyFunctionContext :: Type -> Ident -> [Argument] -> FunctionContext
 emptyFunctionContext retType ident args =
-    FunctionContext ident retType args 0 0 [] Map.empty Map.empty 0 Map.empty
+    FunctionContext ident retType args 0 0 [] Map.empty Nothing Map.empty
+
+getLocationType :: Location -> Type
+getLocationType = getQuadrupleArgumentType
