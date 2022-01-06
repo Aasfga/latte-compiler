@@ -13,6 +13,8 @@ import Lens.Micro.Platform
 data PreQuadruple
   = Quadruple Quadruple
   | PhiPlaceholder Ident
+  | JumpPlaceholder
+  | ConditionalJumpPlaceholder Location
 
 type Location 
   = QuadrupleArgument

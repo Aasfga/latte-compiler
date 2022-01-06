@@ -1,4 +1,5 @@
 
+{-# LANGUAGE PatternSynonyms #-}
 module IntermediateCode.Transformer where
 
 import qualified Data.Map as Map
@@ -18,8 +19,49 @@ import Lens.Micro.Platform
 -- 
 -- Transformer
 -- 
+transformBinaryOperation :: Type -> Operation -> Location -> Location -> FunctionTransformer Location
+transformBinaryOperation Int Plus = integerAdd
+transformBinaryOperation Int Minus = integerSub
+transformBinaryOperation Int Times = integerMul
+transformBinaryOperation Int Div = integerDiv
+transformBinaryOperation Int Mod = integerMod
+transformBinaryOperation Bool And = boolAnd
+transformBinaryOperation Bool Or = boolOr
+transformBinaryOperation String Plus = stringConcat
+transformBinaryOperation _type op = (\_ _ -> throwError $ TypeMissmatchBinaryOperator _type _type op)
+
 transformExpression :: Expression -> FunctionTransformer Location 
-transformExpression = undefined
+transformExpression (Variable p ident) = getLocation ident
+transformExpression (Value p (IntValue x)) = do 
+  unless (minInt <= x && x <= maxInt) $ throwError $ IntegerOutOfBound x
+  return $ ConstInt x
+transformExpression (Value _ (BoolValue x)) = return $ ConstBool x
+transformExpression (Value _ (StringValue x)) = return $ ConstString x
+transformExpression (Application p ident expressions) = do
+  locations <- mapM transformExpression expressions
+  callFunction ident locations
+transformExpression (Neg p expression) = do
+  location <- transformExpression expression
+  integerSub (ConstInt 0) location
+transformExpression (Not p expression) = do
+  location <- transformExpression expression
+  boolNot location 
+transformExpression (Operation p firstExpression op secondExpression) = do
+  firstLocation <- transformExpression firstExpression
+  secondLocation <- transformExpression secondExpression
+  case (getLocationType firstLocation, getLocationType secondLocation) of
+    (Int, Int) -> transformBinaryOperation Int op firstLocation secondLocation
+    (Bool, Bool) -> transformBinaryOperation Bool op firstLocation secondLocation
+    (String, String) -> transformBinaryOperation String op firstLocation secondLocation
+    (firstType, secondType) -> throwError $ TypeMissmatchBinaryOperator firstType secondType op
+transformExpression (Compare p firstExpression op secondExpression) = do
+  firstLocation <- transformExpression firstExpression
+  secondLocation <- transformExpression secondExpression
+  case (getLocationType firstLocation, getLocationType secondLocation) of
+    (Int, Int) -> integerCompare firstLocation op secondLocation
+    (Bool, Bool) -> boolCompare firstLocation op secondLocation
+    (String, String) -> stringCompare firstLocation op secondLocation
+    (firstType, secondType) -> throwError $ TypeMissmatchCompare firstType secondType
 
 transformDeclaration :: Type -> Declaration -> FunctionTransformer ()
 transformDeclaration _type (NoInit p ident) = do
@@ -28,17 +70,18 @@ transformDeclaration _type (NoInit p ident) = do
 transformDeclaration _type (Init p ident expression) = do
   expressionLocation <- transformExpression expression
   let expressionType = getLocationType expressionLocation
-  unless (expressionType == _type) $ throwError $ TypeMissmatchAssigment  _type expressionType
+  assertLocationType expressionLocation _type
   newVariable _type ident expressionLocation
 
 transformStatement' :: Statement -> FunctionTransformer [BlockNumber]
 transformStatement' (Empty _) = return []
 transformStatement' (InnerBlock p block) = do
   previousBlockNumber <- getCurrentBlockNumber
+  addJumpPlaceholder
   leaveQuadrupleBlock
-  (newBlockNumber, blocks) <- transformBlock block True
+  (newBlockNumber, finalBlocks) <- transformBlock block True
   addQuadrupleEdge previousBlockNumber newBlockNumber
-  return blocks
+  return $ makeFinalBlocks newBlockNumber finalBlocks
 transformStatement' (Declaration _ _type declarations) = do
   mapM_ (transformDeclaration _type) declarations
   return []
@@ -51,13 +94,13 @@ transformStatement' (Assigment p ident expression) = do
 transformStatement' (Increment p ident) = do
   assertVariableType ident Int
   location <- getLocation ident
-  newLocation <- iadd location (ConstInt 1)
+  newLocation <- integerAdd location (ConstInt 1)
   setLocation ident newLocation
   return []
 transformStatement' (Decrement p ident) = do
   assertVariableType ident Int
   location <- getLocation ident
-  newLocation <- isub location (ConstInt 1)
+  newLocation <- integerSub location (ConstInt 1)
   setLocation ident newLocation
   return []
 transformStatement' (Return p expression) = do
@@ -65,37 +108,90 @@ transformStatement' (Return p expression) = do
   expressionLocation <- transformExpression expression
   returnExpression expressionLocation
   blockNumber <- getCurrentBlockNumber
+  leaveQuadrupleBlock
   return [blockNumber]
 transformStatement' (VoidReturn p) = do
+  -- TODO what if return is not last
   returnVoid
   blockNumber <- getCurrentBlockNumber
+  leaveQuadrupleBlock
   return [blockNumber]
-    
+transformStatement' (If p expression statement) = do
+  let dummyBlock = DummyBlock statement
+  previousBlockNumber <- getCurrentBlockNumber
+  expressionLocation <- transformExpression expression
+  assertLocationIsBool expressionLocation
+  addConditionalJumpPlaceholder expressionLocation
+  leaveQuadrupleBlock
+  isAlive <- case expressionLocation of 
+    (ConstBool x) -> return x
+    _ -> return True
+  (newBlockNumber, finalBlocks) <- transformBlock dummyBlock isAlive
+  addQuadrupleEdge previousBlockNumber newBlockNumber
+  return $ previousBlockNumber:(makeFinalBlocks newBlockNumber finalBlocks)
+transformStatement' (IfElse p expression first second) = do
+  let firstDummyBlock = DummyBlock first
+  let secondDummyBlock = DummyBlock second
+  previousBlockNumber <- getCurrentBlockNumber
+  expressionLocation <- transformExpression expression
+  assertLocationIsBool expressionLocation
+  addConditionalJumpPlaceholder expressionLocation
+  leaveQuadrupleBlock
+  (isFirstAlive, isSecondAlive) <- case expressionLocation of
+    (ConstBool x) -> return (x, not x)
+    _ -> return (True, True)
+  (firstNumber, firstFinalBlocks) <- transformBlock firstDummyBlock isFirstAlive
+  (secondNumber, secondFinalBlocks) <- transformBlock secondDummyBlock isSecondAlive
+  addQuadrupleEdge previousBlockNumber firstNumber
+  addQuadrupleEdge previousBlockNumber secondNumber
+  return $ (makeFinalBlocks firstNumber firstFinalBlocks) ++ (makeFinalBlocks secondNumber secondFinalBlocks)
+transformStatement' (While p expression statement) = do
+  let dummyBlock = DummyBlock statement
+  previousBlockNumber <- getCurrentBlockNumber
+  addJumpPlaceholder
+  leaveQuadrupleBlock
+  conditionBlockNumber <- newQuadrupleBlock
+  expressionLocation <- transformExpression expression
+  assertLocationIsBool expressionLocation
+  isAlive <- case expressionLocation of
+    (ConstBool x) -> return x
+    _ -> return True
+  addConditionalJumpPlaceholder expressionLocation
+  leaveQuadrupleBlock
+  (loopBlockNumber, blocks) <- transformBlock dummyBlock isAlive
+  addQuadrupleEdge previousBlockNumber conditionBlockNumber
+  addQuadrupleEdge conditionBlockNumber loopBlockNumber
+  mapM_ (\b -> addQuadrupleEdge b conditionBlockNumber) blocks
+  return [conditionBlockNumber]
+transformStatement' (Expression p expression) = do
+  _ <- transformExpression expression
+  return []
 
 transformStatement :: [BlockNumber] -> Statement -> FunctionTransformer [BlockNumber]
-transformStatement [] statements = transformStatement' statements
-transformStatement blocks statements = do
+transformStatement [] statement = transformStatement' statement
+transformStatement finalBlocks statement = do
   assertNotInQuadrupleBlock
   newBlockNumber <- newQuadrupleBlock
-  mapM_ (\s -> addQuadrupleEdge s newBlockNumber) blocks
-  transformStatement' statements
+  mapM_ (\s -> addQuadrupleEdge s newBlockNumber) finalBlocks
+  transformStatement' statement
 
 transformBlock :: Block -> Bool -> FunctionTransformer (BlockNumber, [BlockNumber])
 transformBlock (Block p statements) isAlive = do
   newBlockNumber <- newQuadrupleBlock
   newScope
-  blocks <- foldM transformStatement [] statements
+  finalBlocks <- foldM transformStatement [] statements
+  leaveQuadrupleBlock
   removeScope
-  return (newBlockNumber, if null blocks then [newBlockNumber] else blocks)
+  return (newBlockNumber, makeFinalBlocks newBlockNumber finalBlocks)
 
 transformFunction :: Function -> FunctionTransformer ()
-transformFunction (Function p returnType ident arguments block) = do
+transformFunction (Function p returnType _ arguments block) = do
   let (Block _ statements) = block
   newScope
-  newQuadrupleBlock
+  _ <- newQuadrupleBlock
   arguments <- gets $ view C.arguments
-  mapM_ (uncurry argInit) (zip [0..] arguments)
-  finalBlocks <- foldM transformStatement [] statements
+  mapM_ (uncurry argumentInit) (zip [0..] arguments)
+  foldM_ transformStatement [] statements
   leaveQuadrupleBlock
   removeScope
 
@@ -105,8 +201,9 @@ transformFunctionToQuadruples function = do
   return ()
 
 transformProgram :: Program -> GlobalTransformer ()
-transformProgram program = do
+transformProgram program@(Program p functions) = do
   defineGlobalSymbols program
+  mapM_ transformFunctionToQuadruples functions
   assertMainExists
 
 transformToQuadruples :: Program -> Either LatteError QuadruplesCode
@@ -116,6 +213,15 @@ transformToQuadruples program = case runGlobalTransformer transformProgram progr
 -- 
 -- Global context functions
 -- 
+getFunctionType :: Ident -> GlobalTransformer (Type, [Type])
+getFunctionType ident = do
+  maybeFunction <- Map.lookup ident . view Q.functions <$> get
+  case maybeFunction of 
+    Nothing -> throwError $ SymbolNotFound ident
+    Just function -> do
+      let returnType = view Q.returnType function
+      let argumentTypes = map getArgumentType $ view Q.arguments function
+      return (returnType, argumentTypes)
 
 defineGlobalSymbols :: Program -> GlobalTransformer ()
 defineGlobalSymbols (Program _ functions) = do
@@ -211,14 +317,14 @@ getCurrentScope = do
   scopes <- view C.scopes <$> get
   case scopes of  
     [] -> throwError $ InternalCompilerError "Scope list is empty"
-    (x:xs) -> return x
+    (x:_) -> return x
 
 getLocation :: Ident -> FunctionTransformer Location 
 getLocation ident = do
   maybeInfo <- gets $ Map.lookup ident . view C.variables
   case maybeInfo of
     Nothing -> throwError $ SymbolNotFound ident
-    Just [] -> throwError $ InternalCompilerError "Not able to find information about given variable"
+    Just [] -> throwError $ SymbolNotFound ident
     Just (x:_) -> return x
 
 getBlock :: BlockNumber -> FunctionTransformer BlockContext  
@@ -266,6 +372,20 @@ modifyCurrentBlock f = do
 -- 
 -- Assertions
 -- 
+assertMainExists :: GlobalTransformer ()
+assertMainExists = do
+  maybeMainFunction <- Map.lookup "main" . view Q.functions <$> get
+  unless (isJust maybeMainFunction) (throwError $ SymbolNotFound "main")
+  let mainFunction = fromJust maybeMainFunction
+  let retType = view Q.returnType mainFunction
+  let argTypes = map getArgumentType $ view Q.arguments mainFunction
+  unless (retType == Int && null argTypes) (throwError $ SymbolNotFound "main")
+
+assertCanDefineSymbol :: Ident -> GlobalTransformer ()
+assertCanDefineSymbol ident = do
+  canDefine <- not . Map.member ident . view Q.functions <$> get
+  unless canDefine (throwError $ SymbolInScope ident)
+
 assertNotInQuadrupleBlock :: FunctionTransformer ()
 assertNotInQuadrupleBlock = do
   maybeBlockNumber <- view currentBlockNumber <$> get
@@ -292,52 +412,135 @@ assertVariableType ident actualType = do
   location <- getLocation ident
   assertLocationType location actualType
 
-assertMainExists :: GlobalTransformer ()
-assertMainExists = do
-  maybeMainFunction <- Map.lookup "main" . view Q.functions <$> get
-  unless (isJust maybeMainFunction) (throwError $ SymbolNotFound "main")
-  let mainFunction = fromJust maybeMainFunction
-  let retType = view Q.returnType mainFunction
-  let argTypes = map getArgumentType $ view Q.arguments mainFunction
-  unless (retType == Int && null argTypes) (throwError $ SymbolNotFound "main")
-
-assertCanDefineSymbol :: Ident -> GlobalTransformer ()
-assertCanDefineSymbol ident = do
-  canDefine <- not . Map.member ident . view Q.functions <$> get
-  unless canDefine (throwError $ SymbolInScope ident)
+assertLocationIsBool :: Location -> FunctionTransformer ()
+assertLocationIsBool location = do
+  let locationType = getLocationType location
+  unless (locationType == Bool) $ throwError $ TypeMissmatchIf locationType
 -- 
 -- Quadruples
 -- 
-argInit :: Index -> Argument -> FunctionTransformer ()
-argInit index (Argument _type ident) = do
-  let operation = ArgInit index _type
-  register <- addQuadrupleOperation operation
-  newVariable _type ident $ Register register 
-
 addPhiPlaceholder :: Ident -> FunctionTransformer ()
 addPhiPlaceholder ident = do
   let placeholder = PhiPlaceholder ident
   modifyCurrentBlock $ over code (placeholder:)
 
-iadd :: Location -> Location -> FunctionTransformer Location
-iadd (ConstInt x) (ConstInt y) = return $ ConstInt (x + y)
-iadd first second = do
+addJumpPlaceholder :: FunctionTransformer ()
+addJumpPlaceholder = do
+  modifyCurrentBlock $ over code (JumpPlaceholder:)
+
+addConditionalJumpPlaceholder :: Location ->FunctionTransformer ()
+addConditionalJumpPlaceholder location = do
+  modifyCurrentBlock $ over code (ConditionalJumpPlaceholder location:)
+
+
+argumentInit :: Index -> Argument -> FunctionTransformer ()
+argumentInit index (Argument _type ident) = do
+  let operation = ArgumentInit index _type
+  register <- addQuadrupleOperation operation
+  newVariable _type ident $ Register register 
+
+integerAdd :: Location -> Location -> FunctionTransformer Location
+integerAdd (ConstInt x) (ConstInt y) = return $ ConstInt (x + y)
+integerAdd first second = do
   assertLocationType first Int
   assertLocationType second Int
   let minValue = min first second
   let maxValue = max first second
   let operation = IntegerAdd minValue maxValue
-  resultRegister <- addQuadrupleOperation operation
-  return $ Register resultRegister 
+  Register <$> addQuadrupleOperation operation
 
-isub :: Location -> Location -> FunctionTransformer Location
-isub (ConstInt x) (ConstInt y) = return $ ConstInt (x - y)
-isub first second = do
+integerSub :: Location -> Location -> FunctionTransformer Location
+integerSub (ConstInt x) (ConstInt y) = return $ ConstInt (x - y)
+integerSub first second = do
   assertLocationType first Int
   assertLocationType second Int
   let operation = IntegerSub first second
-  resultRegister <- addQuadrupleOperation operation
-  return $ Register resultRegister 
+  Register <$> addQuadrupleOperation operation
+
+integerMul :: Location -> Location -> FunctionTransformer Location
+integerMul (ConstInt x) (ConstInt y) = return $ ConstInt (x * y)
+integerMul first second = do
+  assertLocationType first Int
+  assertLocationType second Int
+  let minValue = min first second
+  let maxValue = max first second
+  let operation = IntegerMul minValue maxValue
+  Register <$> addQuadrupleOperation operation
+
+integerDiv :: Location -> Location -> FunctionTransformer Location
+integerDiv (ConstInt x) (ConstInt y) = return $ ConstInt (div x  y)
+integerDiv first second = do
+  assertLocationType first Int
+  assertLocationType second Int
+  let operation = IntegerDiv first second
+  Register <$> addQuadrupleOperation operation
+
+integerMod :: Location -> Location -> FunctionTransformer Location
+integerMod (ConstInt x) (ConstInt y) = return $ ConstInt (mod x y)
+integerMod first second = do
+  assertLocationType first Int
+  assertLocationType second Int
+  let operation = IntegerMod first second
+  Register <$> addQuadrupleOperation operation
+
+boolAnd :: Location -> Location -> FunctionTransformer Location
+boolAnd (ConstBool x) (ConstBool y) = return $ ConstBool (x && y)
+boolAnd first second = do
+  assertLocationType first Bool
+  assertLocationType second Bool 
+  let minValue = min first second
+  let maxValue = max first second
+  let operation = BoolAnd minValue maxValue
+  Register <$> addQuadrupleOperation operation
+
+boolOr :: Location -> Location -> FunctionTransformer Location
+boolOr (ConstBool x) (ConstBool y) = return $ ConstBool (x || y)
+boolOr first second = do
+  assertLocationType first Bool
+  assertLocationType second Bool 
+  let minValue = min first second
+  let maxValue = max first second
+  let operation = BoolOr minValue maxValue
+  Register <$> addQuadrupleOperation operation
+
+boolNot :: Location -> FunctionTransformer Location
+boolNot (ConstBool x) = return $ ConstBool (not x)
+boolNot location = do
+  assertLocationType location Bool
+  let operation = BoolNot location
+  Register <$> addQuadrupleOperation operation
+
+stringConcat :: Location -> Location -> FunctionTransformer Location
+stringConcat (ConstString x) (ConstString y) = return $ ConstString (x ++ y)
+stringConcat first second = do
+  assertLocationType first String
+  assertLocationType second String
+  let operation = StringConcat first second
+  Register <$> addQuadrupleOperation operation 
+
+integerCompare :: Location -> CompareOperation -> Location -> FunctionTransformer Location
+integerCompare (ConstInt x) op (ConstInt y) = return $ ConstBool $ getCompareFunction op x y
+integerCompare first op second = do
+  assertLocationType first Int
+  assertLocationType second Int
+  let operation = IntegerCompare first op second
+  Register <$> addQuadrupleOperation operation
+
+stringCompare :: Location -> CompareOperation -> Location -> FunctionTransformer Location
+stringCompare (ConstString x) op (ConstString y) = return $ ConstBool $ getCompareFunction op x y
+stringCompare first op second = do
+  assertLocationType first String
+  assertLocationType second String 
+  let operation = StringCompare first op second
+  Register <$> addQuadrupleOperation operation
+
+boolCompare :: Location -> CompareOperation -> Location -> FunctionTransformer Location
+boolCompare (ConstBool x) op (ConstBool y) = return $ ConstBool $ getCompareFunction op x y
+boolCompare first op second = do
+  assertLocationType first String
+  assertLocationType second String 
+  let operation = BoolCompare first op second
+  Register <$> addQuadrupleOperation operation
 
 returnExpression :: Location -> FunctionTransformer ()
 returnExpression location = do
@@ -350,6 +553,16 @@ returnVoid = do
   assertReturnTypeIsCorrect Void
   let operation = ReturnVoid
   void $ addQuadrupleOperation operation
+
+callFunction :: Ident -> [Location] -> FunctionTransformer Location
+callFunction ident locations = do
+  let locationTypes = map getLocationType locations 
+  (returnType, argumentTypes) <- lift $ getFunctionType ident
+  unless (argumentTypes == locationTypes) $ throwError $ TypeMissmatchApplication ident argumentTypes locationTypes
+  let operation = CallFunction ident returnType locations
+  resultRegister <- addQuadrupleOperation operation
+  return $ Register resultRegister
+
 -- 
 -- Other
 -- 
@@ -371,6 +584,10 @@ libraryFunctions = let
     (Function position (Int) "readInt" [] emptyBlock),
     (Function position (String) "readString" [] emptyBlock)
   ]
+
+makeFinalBlocks :: BlockNumber -> [BlockNumber] -> [BlockNumber]
+makeFinalBlocks block [] = [block]
+makeFinalBlocks _ blocks = blocks
 -- 
 -- Transformers
 -- 
@@ -386,3 +603,8 @@ runFunctionTransformer transformer function = let
     initialState = emptyFunctionContext returnType ident arguments 
   in
     runStateT (transformer function) initialState
+--
+-- Patterns
+-- 
+pattern DummyBlock :: Statement -> Block
+pattern DummyBlock statement = Block NoPosition [statement]
