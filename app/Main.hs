@@ -15,7 +15,7 @@ main = do
       hPutStrLn stderr "ERROR\n"
       print latteError
       exitWith $ ExitFailure 1
-    Right abstractSyntax ->
+    Right abstractSyntax -> do
       case transformToQuadruples abstractSyntax of
         Left latteError -> do
           hPutStrLn stderr "ERROR\n"

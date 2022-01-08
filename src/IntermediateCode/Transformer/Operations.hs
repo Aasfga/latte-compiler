@@ -2,7 +2,6 @@ module IntermediateCode.Transformer.Operations where
 
 import qualified Data.Map as Map
 import Control.Monad.State
-import Control.Monad.Except
 import Errors
 import Data.Maybe
 import Control.Monad
@@ -11,6 +10,7 @@ import qualified IntermediateCode.Definitions.Quadruples as Q
 import qualified IntermediateCode.Transformer.Context as C
 import Lens.Micro.Platform
 import IntermediateCode.Transformer.Utilities
+import Debug.Trace
 
 
 addQuadrupleEdge :: Q.BlockNumber -> Q.BlockNumber -> C.FunctionTransformer ()
@@ -28,6 +28,13 @@ newQuadrupleBlock isAlive = do
   scope <- getCurrentScope
   mapM_ addPhiPlaceholder scope
   return newBlockNumber
+
+gentlyLeaveQuadrupleBlock :: C.FunctionTransformer ()
+gentlyLeaveQuadrupleBlock = do
+  currentBlockNumber <- view C.currentBlockNumber <$> get
+  case currentBlockNumber of
+    Nothing -> return ()
+    _ -> leaveQuadrupleBlock
 
 leaveQuadrupleBlock :: C.FunctionTransformer ()
 leaveQuadrupleBlock = do
@@ -164,8 +171,8 @@ stringCompare first op second = do
 boolCompare :: Q.QuadrupleLocation -> CompareOperation -> Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
 boolCompare (Q.ConstBool x) op (Q.ConstBool y) = return $ Q.ConstBool $ getCompareFunction op x y
 boolCompare first op second = do
-  assertLocationType first String
-  assertLocationType second String 
+  assertLocationType first Bool
+  assertLocationType second Bool
   let operation = Q.BoolCompare first op second
   Q.Register <$> addQuadrupleOperation operation
 
@@ -184,8 +191,10 @@ returnVoid = do
 callFunction :: Ident -> [Q.QuadrupleLocation] -> C.FunctionTransformer Q.QuadrupleLocation
 callFunction ident locations = do
   let locationTypes = map getType locations 
-  (returnType, argumentTypes) <- lift $ getFunctionType ident
-  unless (argumentTypes == locationTypes) $ throwError $ TypeMissmatchApplication ident argumentTypes locationTypes
+  result <- lift $ getFunctionType ident
+  unless (isJust result) $ throwLatteError $ SymbolNotFound ident
+  let (returnType, argumentTypes) = fromJust result
+  unless (argumentTypes == locationTypes) $ throwLatteError $ TypeMissmatchApplication ident argumentTypes locationTypes
   let operation = Q.CallFunction ident returnType locations
   resultRegister <- addQuadrupleOperation operation
   return $ Q.Register resultRegister

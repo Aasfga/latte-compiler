@@ -78,9 +78,9 @@ instance HasType QuadrupleOperation where
   getType (BoolOr _ _) = Bool
   getType (BoolNot _) = Bool
   getType (StringConcat _ _) = String
-  getType (IntegerCompare _ _ _) = Int
+  getType (IntegerCompare _ _ _) = Bool
   getType (BoolCompare _ _ _) = Bool
-  getType (StringCompare _ _ _) = String
+  getType (StringCompare _ _ _) = Bool
   getType (ReturnValue argument) = getType argument
   getType (ReturnVoid) = Void
   getType (CallFunction _ _type _) = _type

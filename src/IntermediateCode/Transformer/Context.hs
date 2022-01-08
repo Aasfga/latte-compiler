@@ -7,6 +7,7 @@ import Errors
 import Types
 import qualified IntermediateCode.Definitions.Quadruples as Q
 import Lens.Micro.Platform
+import Debug.Trace
 
 
 
@@ -37,7 +38,9 @@ data FunctionContext
     _scopes :: [[Ident]],
     _variables :: Map.Map Ident [Q.QuadrupleLocation],
     _currentBlockNumber :: Maybe Q.BlockNumber,
-    _blocks :: Map.Map Int BlockContext
+    _blocks :: Map.Map Int BlockContext,
+    _position :: Position,
+    _finalBlocks :: [Q.BlockNumber]
   }
 
 type GlobalContext = Q.QuadruplesCode 
@@ -46,7 +49,7 @@ $(makeLenses ''BlockContext)
 $(makeLenses ''FunctionContext)
 -- $(makeLenses ''VariableInfo)
 
-type GlobalTransformer = StateT GlobalContext (Either LatteError)
+type GlobalTransformer = StateT GlobalContext (Either (LatteError, Position))
 type FunctionTransformer = StateT FunctionContext GlobalTransformer
 
 emptyGlobalContext :: Q.QuadruplesCode
@@ -57,4 +60,14 @@ emptyBlockContext block isAlive = BlockContext block Map.empty [] [] isAlive [] 
 
 emptyFunctionContext :: Type -> Ident -> [Argument] -> FunctionContext
 emptyFunctionContext retType ident args =
-    FunctionContext ident retType args 0 0 [] Map.empty Nothing Map.empty
+    FunctionContext ident retType args 0 0 [] Map.empty Nothing Map.empty NoPosition []
+
+instance Show BlockContext where
+  show block = let
+      number = view blockNumber block
+      alive = view isAlive block
+      nb = view nextBlocks block
+      pb = view previousBlocks block
+      return = view hasReturn block
+    in
+      "number=" ++ show number ++ " alive=" ++ show alive ++ " hasReturn=" ++ show return ++ " nextBlocks=" ++ show nb ++ " previousBlocks=" ++ show pb
