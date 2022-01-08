@@ -2,7 +2,6 @@ module IntegrationTests.AnalyzerTest where
 
 import Errors ( LatteError )
 import Parser.Parser ( parse )
-import Analyzer.Analyzer ( runAnalyzer )
 import Data.Maybe ( isJust, isNothing )
 import IntegrationTests.Generator (IntegrationTest)
 import IntermediateCode.Transformer

@@ -1,7 +1,6 @@
 module Main where
 
 import Parser.Parser ( parse )
-import Analyzer.Analyzer
 import System.IO
 import System.Exit
 import IntermediateCode.Transformer

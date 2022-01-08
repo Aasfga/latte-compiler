@@ -24,10 +24,14 @@ data QuadrupleLocation
 
 data Quadruple 
   = QuadrupleOperation TemporaryRegister QuadrupleOperation
-  | Label Label
+  | Jump BlockNumber
+  | ConditionalJump QuadrupleLocation BlockNumber BlockNumber
+  | Label BlockNumber
+  deriving (Eq, Ord, Show)
 
 data QuadrupleOperation
   = ArgumentInit Int Type
+  | Phi [(QuadrupleLocation, BlockNumber)]
   | IntegerAdd QuadrupleLocation QuadrupleLocation
   | IntegerSub QuadrupleLocation QuadrupleLocation
   | IntegerMul QuadrupleLocation QuadrupleLocation
@@ -43,6 +47,7 @@ data QuadrupleOperation
   | ReturnValue QuadrupleLocation
   | ReturnVoid
   | CallFunction Ident Type [QuadrupleLocation]
+  deriving (Eq, Ord, Show)
 
 data QuadruplesCode 
   = QuadruplesCode {

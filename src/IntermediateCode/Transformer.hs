@@ -18,6 +18,7 @@ import Lens.Micro.Platform
 import Debug.Trace
 import IntermediateCode.Transformer.Utilities
 import IntermediateCode.Transformer.Operations
+import GHC.IO
 
 
 -- 
@@ -141,11 +142,12 @@ transformStatement' (AST.If _ expression statement) = do
   currentBlockNumber <- getCurrentBlockNumber
   expressionLocation <- transformExpression expression
   assertLocationIsBool expressionLocation
-  addConditionalJumpPlaceholder expressionLocation
-  leaveQuadrupleBlock
   (isIfAlive, cond) <- case expressionLocation of 
     (Q.ConstBool x) -> return $ (currentAlive && x, x)
     _ -> return (currentAlive, False)
+  when (not cond) $ addConditionalJumpPlaceholder expressionLocation
+  when (cond) $ addJumpPlaceholder
+  leaveQuadrupleBlock
   (newBlockNumber, result) <- transformBlock dummyBlock isIfAlive
   let (finalBlocks, areFinalBlocksAlive) = result
   addQuadrupleEdge currentBlockNumber newBlockNumber
@@ -216,8 +218,8 @@ transformBlock (AST.Block p statements) isAlive = do
   gentlyLeaveQuadrupleBlock
   return (newBlockNumber, (finalBlocks, areFinalBlocksAlive))
 
-transformFunction :: AST.Block -> C.FunctionTransformer ()
-transformFunction (AST.Block p statements) = do
+transformFunctionBlock :: AST.Block -> C.FunctionTransformer ()
+transformFunctionBlock (AST.Block p statements) = do
   lift $ savePosition p
   newScope
   x <- newQuadrupleBlock True
@@ -230,6 +232,27 @@ transformFunction (AST.Block p statements) = do
   removeScope
   assertFinalBlocksHaveReturn
 
+checkBlock :: C.BlockContext -> C.FunctionTransformer ()
+checkBlock block = do
+  let blockNumber = view C.blockNumber block
+  finalBlocks <- traceShowId . view C.finalBlocks <$> get
+  unless (blockNumber < 10000) $ throwErrorFunction $ InternalCompilerError "xyz"
+  unless (length finalBlocks <10000) $ throwErrorFunction $ InternalCompilerError "xyz"
+
+
+checkBlocks :: C.FunctionTransformer ()
+checkBlocks = do
+  blocks <- Map.elems . view C.blocks <$> get
+  mapM_ (checkBlock . traceShowId) blocks
+
+transformFunction :: AST.Block -> C.FunctionTransformer ()
+transformFunction block = do
+  returnType <- view C.returnType <$> get
+  transformFunctionBlock block
+  when (returnType == Void) addDummyReturnVoidBlock
+  checkBlocks
+  replacePreQuadruples 
+  
 transformGlobalSymbolToQuadruples :: AST.GlobalSymbol -> C.GlobalTransformer ()
 transformGlobalSymbolToQuadruples (AST.Function _ returnType functionName arguments block) = do
   result <- runFunctionTransformer returnType functionName arguments block
@@ -245,6 +268,48 @@ transformToQuadruples :: AST.Program -> Either (LatteError, Position) C.GlobalCo
 transformToQuadruples program = case runGlobalTransformer program of
     Left error -> Left error
     Right (_, code) -> Right code
+-- 
+-- Finishers
+--
+addDummyReturnVoidBlock :: C.FunctionTransformer ()
+addDummyReturnVoidBlock = do
+  let statement = AST.VoidReturn NoPosition
+  let block = AST.DummyBlock statement
+  finalBlocks <- view C.finalBlocks <$> get
+  (lastBlockNumber, _) <- transformBlock block True
+  mapM_ (\s -> addQuadrupleEdge s lastBlockNumber) finalBlocks
+
+replacePreQuadruple :: Q.BlockNumber -> C.PreQuadruple -> C.FunctionTransformer C.PreQuadruple
+replacePreQuadruple blockNumber (C.PhiPlaceholder ident temporaryRegister) = do
+  previousBlocksNumbers <- view C.previousBlocks <$> getBlock blockNumber
+  maybeLocations <- map (Map.lookup ident . view C.finalVariables) <$> mapM getBlock previousBlocksNumbers
+  unless (all isJust maybeLocations) $ throwErrorFunction $ InternalCompilerError "Not able to create phi function"
+  let locations = map fromJust maybeLocations
+  let phi = Q.Phi $ zip locations previousBlocksNumbers
+  return $ C.Quadruple $ Q.QuadrupleOperation temporaryRegister phi 
+replacePreQuadruple blockNumber C.JumpPlaceholder = do
+  nextBlockNumbers <- view C.nextBlocks <$> getBlock blockNumber
+  unless (length nextBlockNumbers == 1) $ throwErrorFunction $ InternalCompilerError "Not able to create jump operation"
+  let target:[] = nextBlockNumbers
+  let jump = Q.Jump target
+  return $ C.Quadruple $ jump
+replacePreQuadruple blockNumber (C.ConditionalJumpPlaceholder location) = do
+  nextBlockNumbers <- view C.nextBlocks <$> getBlock blockNumber
+  unless (length nextBlockNumbers == 2) $ throwErrorFunction $ InternalCompilerError "Not able to create conditional jump operation"
+  let elseJump:ifJump:[] = nextBlockNumbers
+  let conditionalJump = Q.ConditionalJump location ifJump elseJump
+  return $ C.Quadruple $ conditionalJump
+replacePreQuadruple _ preQuadruple = return preQuadruple
+
+replacePreQuadruples :: C.FunctionTransformer ()
+replacePreQuadruples = do
+  blocks <- Map.elems . view C.blocks <$> get
+  mapM_ (\block -> do
+    let code = view C.code block
+    let blockNumber = view C.blockNumber block
+    newCode <- mapM (replacePreQuadruple blockNumber) code
+    modifyBlock blockNumber $ set C.code newCode
+    ) blocks
 -- 
 -- Transformers
 -- 

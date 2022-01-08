@@ -8,14 +8,16 @@ import Types
 import qualified IntermediateCode.Definitions.Quadruples as Q
 import Lens.Micro.Platform
 import Debug.Trace
+import Data.List
 
 
 
 data PreQuadruple
   = Quadruple Q.Quadruple
-  | PhiPlaceholder Ident
+  | PhiPlaceholder Ident Q.TemporaryRegister
   | JumpPlaceholder
   | ConditionalJumpPlaceholder Q.QuadrupleLocation
+  deriving (Show)
 
 data BlockContext
   = BlockContext {
@@ -72,5 +74,17 @@ instance Show BlockContext where
       nb = view nextBlocks block
       pb = view previousBlocks block
       return = view hasReturn block
+      fv = view finalVariables block
+      keys = Map.keys fv
+      values = map (\k -> Map.lookup k fv) keys
+      tuples = zip values keys
+      c = concat $ intersperse "\n" $ map show $ reverse $ view code block
+
     in
-      "number=" ++ show number ++ " alive=" ++ show alive ++ " hasReturn=" ++ show return ++ " nextBlocks=" ++ show nb ++ " previousBlocks=" ++ show pb
+      "Block " ++ show number ++ ": \n" ++
+      " alive=" ++ show alive ++ "\n" ++ 
+      " hasReturn=" ++ show return ++ "\n" ++ 
+      " nextBlocks=" ++ show nb ++ "\n" ++ 
+      " previousBlocks=" ++ show pb ++ "\n" ++ 
+      " finalVariables=" ++ show tuples ++ "\n" ++
+      " code= \n" ++ c

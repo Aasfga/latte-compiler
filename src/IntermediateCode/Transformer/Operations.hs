@@ -25,8 +25,8 @@ newQuadrupleBlock isAlive = do
   setCurrentBlockNumber newBlockNumber
   let newBlock = C.emptyBlockContext newBlockNumber isAlive
   modify $ over C.blocks (Map.insert newBlockNumber newBlock)
-  scope <- getCurrentScope
-  mapM_ addPhiPlaceholder scope
+  idents <- map fst . filter (not . null . snd) . Map.toList . view C.variables <$> get
+  mapM_ addPhiPlaceholder idents
   return newBlockNumber
 
 gentlyLeaveQuadrupleBlock :: C.FunctionTransformer ()
@@ -38,9 +38,9 @@ gentlyLeaveQuadrupleBlock = do
 
 leaveQuadrupleBlock :: C.FunctionTransformer ()
 leaveQuadrupleBlock = do
-  scope <- getCurrentScope
-  locations <- mapM getLocation scope
-  modifyCurrentBlock $ set C.finalVariables (Map.fromList $ zip scope locations)
+  variables <- Map.toList . view C.variables <$> get
+  let finalVariables = map (\(ident, x:_) -> (ident, x)) (filter (not . null . snd) variables)
+  modifyCurrentBlock $ set C.finalVariables $ Map.fromList finalVariables
   modify $ set C.currentBlockNumber Nothing
 
 addQuadrupleOperation :: Q.QuadrupleOperation -> C.FunctionTransformer Q.TemporaryRegister
@@ -54,10 +54,16 @@ addQuadrupleOperation operation = do
 -- 
 -- Operations
 -- 
-addPhiPlaceholder :: Ident -> C.FunctionTransformer ()
+addPhiPlaceholder :: Ident -> C.FunctionTransformer Q.QuadrupleLocation
 addPhiPlaceholder ident = do
-  let placeholder = C.PhiPlaceholder ident
+  newRegisterNumber <- getNewRegisterNumber
+  variableType <- getType <$> getLocation ident
+  let temporaryRegister = Q.TemporaryRegister variableType newRegisterNumber
+  let register = Q.Register temporaryRegister 
+  let placeholder = C.PhiPlaceholder ident temporaryRegister
   modifyCurrentBlock $ over C.code (placeholder:)
+  setLocation ident register
+  return register
 
 addJumpPlaceholder :: C.FunctionTransformer ()
 addJumpPlaceholder = do
