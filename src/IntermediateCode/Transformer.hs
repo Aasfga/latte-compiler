@@ -13,11 +13,11 @@ import Control.Monad.Trans.Maybe
 import Types
 import qualified IntermediateCode.Definitions.AbstractSyntaxTree as AST
 import qualified IntermediateCode.Definitions.Quadruples as Q 
-import qualified IntermediateCode.Transformer.TransformerContext as C
+import qualified IntermediateCode.Transformer.Context as C
 import Lens.Micro.Platform
 import Debug.Trace
 import IntermediateCode.Transformer.Utilities
-import IntermediateCode.Transformer.QuadrupleUtilities
+import IntermediateCode.Transformer.Operations
 
 -- 
 -- Transformer
@@ -35,11 +35,11 @@ transformBinaryOperation _type op = (\_ _ -> throwError $ TypeMissmatchBinaryOpe
 
 transformExpression :: AST.Expression -> C.FunctionTransformer Q.QuadrupleLocation 
 transformExpression (AST.Variable p ident) = getLocation ident
-transformExpression (AST.Value p (IntValue x)) = do 
-  unless (minInt <= x && x <= maxInt) $ throwError $ IntegerOutOfBound x
-  return $ Q.ConstInt x
-transformExpression (AST.Value _ (BoolValue x)) = return $ Q.ConstBool x
-transformExpression (AST.Value _ (StringValue x)) = return $ Q.ConstString x
+transformExpression (AST.Value p (AST.IntegerValue x)) = do 
+  -- unless (minBound :: Int) <= x && x <= maxInt) $ throwError $ IntegerOutOfBound x
+  return $ Q.ConstInt $ fromIntegral x
+transformExpression (AST.Value _ (AST.BoolValue x)) = return $ Q.ConstBool x
+transformExpression (AST.Value _ (AST.StringValue x)) = return $ Q.ConstString x
 transformExpression (AST.Application p ident expressions) = do
   locations <- mapM transformExpression expressions
   callFunction ident locations
@@ -68,8 +68,8 @@ transformExpression (AST.Compare p firstExpression op secondExpression) = do
 
 transformDeclaration :: Type -> AST.Declaration -> C.FunctionTransformer ()
 transformDeclaration _type (AST.NoInit p ident) = do
-  defaultValue <- getDefaultValue _type
-  newVariable _type ident $ Q.ConstValue defaultValue
+  constValue <- getDefaultConstValue _type
+  newVariable _type ident constValue
 transformDeclaration _type (AST.Init p ident expression) = do
   expressionLocation <- transformExpression expression
   let expressionType = Q.getQuadrupleLocationType expressionLocation

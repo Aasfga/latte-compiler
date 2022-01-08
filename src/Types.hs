@@ -22,12 +22,6 @@ data Type
   | Function Type [Type]
   deriving (Eq, Ord, Read)
 
-data Value 
-  = IntValue Int
-  | BoolValue Bool
-  | StringValue String
-  deriving (Eq, Ord, Show, Read)
-
 data Argument = Argument Type Ident
   deriving (Eq, Ord, Show, Read)
 
@@ -49,8 +43,17 @@ data Operation
   | Or
   | And
   deriving (Eq, Ord, Read)
+-- 
+-- Clasess
+-- 
+class HasType a where
+  getType       :: a -> Type
 
+class HasIdent a where 
+  getIdent      :: a -> Ident
+-- 
 -- Instances
+-- 
 instance Show Type where
   show Int = "int"
   show String = "string"
@@ -79,38 +82,17 @@ instance Show CompareOperation where
   show EQU = "=="
   show NE = "!="
 
+instance HasType Argument where 
+  getType (Argument _type _) = _type
 
+instance HasIdent Argument where
+  getIdent (Argument _ ident) = ident
+-- 
 -- Functions
-isStringOperation :: Operation -> Bool
-isStringOperation Plus = True
-isStringOperation _ = False
-
-isIntOperation :: Operation -> Bool
-isIntOperation Plus = True
-isIntOperation Minus = True
-isIntOperation Times = True
-isIntOperation Div = True
-isIntOperation Mod = True
-isIntOperation _ = False
-
-isBoolOperation :: Operation -> Bool
-isBoolOperation And = True
-isBoolOperation Or = True
-isBoolOperation _ = False
-
-isCorrectCompare :: Type -> Type -> Bool
-isCorrectCompare Int Int = True
-isCorrectCompare String String = True
-isCorrectCompare Bool Bool = True
-isCorrectCompare _ _ = False
-
-isInt :: Type -> Bool
-isInt Int = True
-isInt _ = False
-
-isBool :: Type -> Bool
-isBool Bool = True
-isBool _ = False
+-- 
+-- Functions
+getArgumentType :: Argument -> Type
+getArgumentType (Argument _type _) = _type
 
 getCompareFunction :: Ord a => CompareOperation -> a -> a -> Bool
 getCompareFunction LTH = (<)
@@ -119,22 +101,3 @@ getCompareFunction GTH  = (>)
 getCompareFunction GE = (>=)
 getCompareFunction EQU = (==)
 getCompareFunction NE = (/=)
-
-minInt :: Int
-minInt = -2147483648
-
-maxInt :: Int
-maxInt = 2147483647
-
-libraryFunctionsOld :: [(String, Type)]
-libraryFunctionsOld = [
-    ("printInt", Function Void [Int]),
-    ("printString", Function Void [String]),
-    ("error", Function Void []),
-    ("readInt", Function Int []),
-    ("readString", Function String [])
-  ]
-  
--- Functions
-getArgumentType :: Argument -> Type
-getArgumentType (Argument _type _) = _type

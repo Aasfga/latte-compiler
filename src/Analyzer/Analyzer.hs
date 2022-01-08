@@ -7,6 +7,7 @@ import Control.Monad.State
 import Control.Monad.Except
 import Errors
 import Analyzer.ExpressionCalculator
+import Analyzer.Leftovers
 
 analyzeOperation :: Type -> Operation -> Type -> Maybe Type
 analyzeOperation Int op Int = 
@@ -22,8 +23,7 @@ analyzeExpression (Variable _ ident) =
   getSymbolType ident
 analyzeExpression (Value _ value) = 
   case value of 
-    IntValue x -> do
-      unless (minInt <= x && x <= maxInt) (throwError $ IntegerOutOfBound x)
+    IntegerValue x -> do
       return Int
     BoolValue _ -> return Bool
     StringValue _ -> return String

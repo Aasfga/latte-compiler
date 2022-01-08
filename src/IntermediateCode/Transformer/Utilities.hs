@@ -9,7 +9,7 @@ import Control.Monad
 import Types
 import IntermediateCode.Definitions.AbstractSyntaxTree as AST
 import IntermediateCode.Definitions.Quadruples as Q 
-import IntermediateCode.Transformer.TransformerContext as C
+import IntermediateCode.Transformer.Context as C
 import Lens.Micro.Platform
 import Debug.Trace
 
@@ -86,6 +86,7 @@ getCurrentBlockNumber = do
 getCurrentScope :: FunctionTransformer [Ident]
 getCurrentScope = do
   scopes <- view C.scopes <$> get
+  arguments <- view C.arguments <$> get
   case scopes of  
     [] -> throwError $ InternalCompilerError "Scope list is empty"
     (x:_) -> return x
@@ -200,11 +201,11 @@ assertFinalBlocksHaveReturn blocks = do
 -- 
 -- Other
 -- 
-getDefaultValue :: Type -> FunctionTransformer Value
-getDefaultValue Int = return $ IntValue 0
-getDefaultValue String = return $ StringValue ""
-getDefaultValue Bool = return $ BoolValue False
-getDefaultValue _type = throwError $ InternalCompilerError ("No default value for type " ++ show _type)
+getDefaultConstValue :: Type -> FunctionTransformer QuadrupleLocation
+getDefaultConstValue Int = return $ ConstInt 0
+getDefaultConstValue String = return $ ConstString ""
+getDefaultConstValue Bool = return $ ConstBool False
+getDefaultConstValue _type = throwError $ InternalCompilerError ("No default value for type " ++ show _type)
 
 libraryFunctions :: [Function]
 libraryFunctions = let 

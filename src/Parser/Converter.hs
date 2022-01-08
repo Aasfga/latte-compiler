@@ -65,15 +65,15 @@ convertExpression :: Src.Expr' a -> Dest.Expression' a
 convertExpression (Src.Var a ident) = 
   Dest.Variable a (convertIdent ident)
 convertExpression (Src.LitInt a value) = 
-  Dest.Value a (Types.IntValue $ fromIntegral value)
+  Dest.Value a (Dest.IntegerValue value)
 convertExpression (Src.LitTrue a) = 
-  Dest.Value a (Types.BoolValue True)
+  Dest.Value a (Dest.BoolValue True)
 convertExpression (Src.LitFalse a) = 
-  Dest.Value a (Types.BoolValue False)
+  Dest.Value a (Dest.BoolValue False)
 convertExpression (Src.App a ident exprs) =
   Dest.Application a (convertIdent ident) (map convertExpression exprs)
 convertExpression (Src.String a value) = 
-  Dest.Value a (Types.StringValue value)
+  Dest.Value a (Dest.StringValue value)
 convertExpression (Src.Neg a expr) = 
   Dest.Neg a (convertExpression expr)
 convertExpression (Src.Not a expr) = 

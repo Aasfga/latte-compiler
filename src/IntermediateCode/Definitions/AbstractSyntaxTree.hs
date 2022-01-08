@@ -1,7 +1,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 module IntermediateCode.Definitions.AbstractSyntaxTree where
 
-import Types ( Argument, Position (..), Ident, Type, Value, Operation, CompareOperation )
+import Types ( Argument, Position (..), Ident, Type, Operation, CompareOperation )
 
 
 -- Definitions
@@ -46,6 +46,12 @@ data Expression' a
     | Not a (Expression' a)
     | Operation a (Expression' a) Operation (Expression' a)
     | Compare a (Expression' a) CompareOperation (Expression' a)
+  deriving (Eq, Ord, Show, Read)
+
+data Value 
+  = IntegerValue Integer
+  | BoolValue Bool
+  | StringValue String
   deriving (Eq, Ord, Show, Read)
 -- 
 -- Instances

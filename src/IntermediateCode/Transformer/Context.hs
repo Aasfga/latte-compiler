@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module IntermediateCode.Transformer.TransformerContext where
+module IntermediateCode.Transformer.Context where
 
 import qualified Data.Map as Map
 import Control.Monad.State

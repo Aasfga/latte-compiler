@@ -17,7 +17,9 @@ data TemporaryRegister
 
 data QuadrupleLocation
   = Register TemporaryRegister
-  | ConstValue Value
+  | ConstInt Int 
+  | ConstBool Bool
+  | ConstString String
   deriving (Eq, Ord, Show)
 
 data Quadruple 
@@ -88,20 +90,11 @@ getOperationType operation = case operation of
 
 getQuadrupleLocationType :: QuadrupleLocation -> Type
 getQuadrupleLocationType (Register (TemporaryRegister _type _)) = _type
-getQuadrupleLocationType (ConstValue (IntValue _)) = Int
-getQuadrupleLocationType (ConstValue (BoolValue _)) = Bool
-getQuadrupleLocationType (ConstValue (StringValue _)) = String
+getQuadrupleLocationType (ConstInt _) = Int
+getQuadrupleLocationType (ConstBool _) = Bool
+getQuadrupleLocationType (ConstString _) = String
 -- 
 -- Patterns
 -- 
-pattern ConstInt :: Int -> QuadrupleLocation
-pattern ConstInt x = ConstValue (IntValue x)
-
-pattern ConstBool :: Bool -> QuadrupleLocation
-pattern ConstBool x = ConstValue (BoolValue x)
-
-pattern ConstString :: String -> QuadrupleLocation
-pattern ConstString x = ConstValue (StringValue x)
-
 pattern QuadrupleRegister :: Type -> Index -> QuadrupleLocation
 pattern QuadrupleRegister _type register = Register (TemporaryRegister _type register)

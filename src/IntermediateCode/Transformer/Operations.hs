@@ -1,4 +1,4 @@
-module IntermediateCode.Transformer.QuadrupleUtilities where
+module IntermediateCode.Transformer.Operations where
 
 import qualified Data.Map as Map
 import Control.Monad.State
@@ -8,7 +8,7 @@ import Data.Maybe
 import Control.Monad
 import Types
 import qualified IntermediateCode.Definitions.Quadruples as Q 
-import qualified IntermediateCode.Transformer.TransformerContext as C
+import qualified IntermediateCode.Transformer.Context as C
 import Lens.Micro.Platform
 import IntermediateCode.Transformer.Utilities
 
