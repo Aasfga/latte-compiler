@@ -1,8 +1,8 @@
 module Analyzer.Analyzer where
 
 import Analyzer.AnalyzerState
-import IntermediateCode.Definitions.AbstractSyntaxTree
-import Types
+import IntermediateCode.Definitions.AbstractSyntaxTree as AST
+import Types as T
 import Control.Monad.State
 import Control.Monad.Except
 import Errors
@@ -31,7 +31,7 @@ analyzeExpression (Application _ ident expressions) = do
   found <- mapM analyzeExpression expressions
   identType <- getSymbolType ident
   case identType of
-    Fun _type required -> do
+    T.Function _type required -> do
       unless (found == required) (throwError $ TypeMissmatchApplication ident required found)
       return _type
     _ -> throwError $ FunctionNotFound ident
@@ -132,7 +132,7 @@ analyzeBlock (Block _ statements) arguments = do
   return $ or returnList
 
 analyzeFunction :: Function' a -> AnalyzerState ()
-analyzeFunction (Function _ _type ident arguments block) = do 
+analyzeFunction (AST.Function _ _type ident arguments block) = do 
   setFunctionType _type
   isReturn <- analyzeBlock block arguments
   case _type of 
@@ -140,9 +140,9 @@ analyzeFunction (Function _ _type ident arguments block) = do
     _ -> unless isReturn (throwError $ MissingReturn ident _type)
 
 addFunctionsToScope :: Function' a -> AnalyzerState ()
-addFunctionsToScope (Function _ _type ident arguments _) = do
+addFunctionsToScope (AST.Function _ _type ident arguments _) = do
   let argumentTypes = map getArgumentType arguments
-  addSymbol ident (Fun _type argumentTypes)
+  addSymbol ident (T.Function _type argumentTypes)
 
 addLibraryFunctions :: AnalyzerState ()
 addLibraryFunctions = mapM_ (uncurry addSymbol) libraryFunctionsOld
@@ -150,7 +150,7 @@ addLibraryFunctions = mapM_ (uncurry addSymbol) libraryFunctionsOld
 checkIfMainExists :: AnalyzerState ()
 checkIfMainExists = do
   mainType <- getSymbolType "main"
-  unless (mainType == Fun Int []) (throwError $ SymbolNotFound "main")
+  unless (mainType == T.Function Int []) (throwError $ SymbolNotFound "main")
 
 analyzeProgram :: Program' a -> AnalyzerState ()
 analyzeProgram (Program _ functions) = do

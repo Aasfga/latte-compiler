@@ -32,7 +32,7 @@ defineGlobalSymbols (Program _ functions) = do
   mapM_ newSymbol functions
 
 newSymbol :: Function -> GlobalTransformer ()
-newSymbol (Function _ retType ident args _) = do
+newSymbol (AST.Function _ retType ident args _) = do
   assertCanDefineSymbol ident
   let newFunction = emptyFunction retType args
   modify $ over Q.functions (Map.insert ident newFunction)
@@ -212,11 +212,11 @@ libraryFunctions = let
     emptyBlock = Block position []
     createArg = \t -> Argument t "x"
   in [
-    (Function position Void "printInt" [createArg Int] emptyBlock),
-    (Function position Void "printString" [createArg String] emptyBlock),
-    (Function position Void "error" [] emptyBlock), 
-    (Function position (Int) "readInt" [] emptyBlock),
-    (Function position (String) "readString" [] emptyBlock)
+    (AST.Function position Void "printInt" [createArg Int] emptyBlock),
+    (AST.Function position Void "printString" [createArg String] emptyBlock),
+    (AST.Function position Void "error" [] emptyBlock), 
+    (AST.Function position (Int) "readInt" [] emptyBlock),
+    (AST.Function position (String) "readString" [] emptyBlock)
   ]
 
 makeFinalBlocks :: (BlockNumber, Bool) -> [(BlockNumber, Bool)] -> [(BlockNumber, Bool)]

@@ -19,7 +19,7 @@ data Type
   | String 
   | Bool 
   | Void 
-  | Fun Type [Type]
+  | Function Type [Type]
   deriving (Eq, Ord, Read)
 
 data Value 
@@ -56,7 +56,7 @@ instance Show Type where
   show String = "string"
   show Bool = "bool"
   show Void = "void"
-  show (Fun _type argTypes) = let
+  show (Function _type argTypes) = let
       parsedArgTypes = intercalate " -> " $ map show argTypes
       parsedType = show _type
     in
@@ -128,11 +128,11 @@ maxInt = 2147483647
 
 libraryFunctionsOld :: [(String, Type)]
 libraryFunctionsOld = [
-    ("printInt", Fun Void [Int]),
-    ("printString", Fun Void [String]),
-    ("error", Fun Void []),
-    ("readInt", Fun Int []),
-    ("readString", Fun String [])
+    ("printInt", Function Void [Int]),
+    ("printString", Function Void [String]),
+    ("error", Function Void []),
+    ("readInt", Function Int []),
+    ("readString", Function String [])
   ]
   
 -- Functions

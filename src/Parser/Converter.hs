@@ -22,7 +22,7 @@ convertType (Src.Str _) = Types.String
 convertType (Src.Bool _) = Types.Bool
 convertType (Src.Void _) = Types.Void
 convertType (Src.Fun _ retType argTypes) = 
-  Types.Fun (convertType retType) (map convertType argTypes)
+  Types.Function (convertType retType) (map convertType argTypes)
 
 convertIdent :: Src.Ident -> String
 convertIdent (Src.Ident ident) = ident
