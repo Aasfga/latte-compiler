@@ -22,7 +22,7 @@ import IntermediateCode.Transformer.QuadrupleUtilities
 -- 
 -- Transformer
 -- 
-transformBinaryOperation :: Type -> Operation -> C.Location -> C.Location -> C.FunctionTransformer C.Location
+transformBinaryOperation :: Type -> Operation -> Q.QuadrupleLocation -> Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
 transformBinaryOperation Int Plus = integerAdd
 transformBinaryOperation Int Minus = integerSub
 transformBinaryOperation Int Times = integerMul
@@ -33,7 +33,7 @@ transformBinaryOperation Bool Or = boolOr
 transformBinaryOperation String Plus = stringConcat
 transformBinaryOperation _type op = (\_ _ -> throwError $ TypeMissmatchBinaryOperator _type _type op)
 
-transformExpression :: AST.Expression -> C.FunctionTransformer C.Location 
+transformExpression :: AST.Expression -> C.FunctionTransformer Q.QuadrupleLocation 
 transformExpression (AST.Variable p ident) = getLocation ident
 transformExpression (AST.Value p (IntValue x)) = do 
   unless (minInt <= x && x <= maxInt) $ throwError $ IntegerOutOfBound x
@@ -52,7 +52,7 @@ transformExpression (AST.Not p expression) = do
 transformExpression (AST.Operation p firstExpression op secondExpression) = do
   firstLocation <- transformExpression firstExpression
   secondLocation <- transformExpression secondExpression
-  case (C.getLocationType firstLocation, C.getLocationType secondLocation) of
+  case (Q.getQuadrupleLocationType firstLocation, Q.getQuadrupleLocationType secondLocation) of
     (Int, Int) -> transformBinaryOperation Int op firstLocation secondLocation
     (Bool, Bool) -> transformBinaryOperation Bool op firstLocation secondLocation
     (String, String) -> transformBinaryOperation String op firstLocation secondLocation
@@ -60,7 +60,7 @@ transformExpression (AST.Operation p firstExpression op secondExpression) = do
 transformExpression (AST.Compare p firstExpression op secondExpression) = do
   firstLocation <- transformExpression firstExpression
   secondLocation <- transformExpression secondExpression
-  case (C.getLocationType firstLocation, C.getLocationType secondLocation) of
+  case (Q.getQuadrupleLocationType firstLocation, Q.getQuadrupleLocationType secondLocation) of
     (Int, Int) -> integerCompare firstLocation op secondLocation
     (Bool, Bool) -> boolCompare firstLocation op secondLocation
     (String, String) -> stringCompare firstLocation op secondLocation
@@ -72,7 +72,7 @@ transformDeclaration _type (AST.NoInit p ident) = do
   newVariable _type ident $ Q.ConstValue defaultValue
 transformDeclaration _type (AST.Init p ident expression) = do
   expressionLocation <- transformExpression expression
-  let expressionType = C.getLocationType expressionLocation
+  let expressionType = Q.getQuadrupleLocationType expressionLocation
   assertLocationType expressionLocation _type
   newVariable _type ident expressionLocation
 
@@ -91,7 +91,7 @@ transformStatement' (AST.Declaration _ _type declarations) = do
   return []
 transformStatement' (AST.Assigment p ident expression) = do
   expressionLocation <- transformExpression expression
-  let expressionType = C.getLocationType expressionLocation
+  let expressionType = Q.getQuadrupleLocationType expressionLocation
   assertVariableType ident expressionType
   setLocation ident expressionLocation
   return []

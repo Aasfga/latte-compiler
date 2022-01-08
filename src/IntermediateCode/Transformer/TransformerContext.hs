@@ -14,15 +14,12 @@ data PreQuadruple
   = Quadruple Q.Quadruple
   | PhiPlaceholder Ident
   | JumpPlaceholder
-  | ConditionalJumpPlaceholder Location
-
-type Location 
-  = Q.QuadrupleArgument
+  | ConditionalJumpPlaceholder Q.QuadrupleLocation
 
 data BlockContext
   = BlockContext {
     _blockNumber :: Int,
-    _finalVariables :: Map.Map Ident Q.QuadrupleArgument,
+    _finalVariables :: Map.Map Ident Q.QuadrupleLocation,
     _previousBlocks :: [Q.BlockNumber],
     _nextBlocks :: [Q.BlockNumber],
     _isAlive :: Bool,
@@ -38,7 +35,7 @@ data FunctionContext
     _blockCounter :: Int,
     _registerCounter :: Int,
     _scopes :: [[Ident]],
-    _variables :: Map.Map Ident [Q.QuadrupleArgument],
+    _variables :: Map.Map Ident [Q.QuadrupleLocation],
     _currentBlockNumber :: Maybe Q.BlockNumber,
     _blocks :: Map.Map Int BlockContext
   }
@@ -61,6 +58,3 @@ emptyBlockContext block isAlive = BlockContext block Map.empty [] [] isAlive [] 
 emptyFunctionContext :: Type -> Ident -> [Argument] -> FunctionContext
 emptyFunctionContext retType ident args =
     FunctionContext ident retType args 0 0 [] Map.empty Nothing Map.empty
-
-getLocationType :: Location -> Type
-getLocationType = Q.getQuadrupleArgumentType

@@ -15,7 +15,7 @@ data TemporaryRegister
   = TemporaryRegister Type Index
   deriving (Eq, Ord, Show)
 
-data QuadrupleArgument
+data QuadrupleLocation
   = Register TemporaryRegister
   | ConstValue Value
   deriving (Eq, Ord, Show)
@@ -26,21 +26,21 @@ data Quadruple
 
 data QuadrupleOperation
   = ArgumentInit Int Type
-  | IntegerAdd QuadrupleArgument QuadrupleArgument
-  | IntegerSub QuadrupleArgument QuadrupleArgument
-  | IntegerMul QuadrupleArgument QuadrupleArgument
-  | IntegerDiv QuadrupleArgument QuadrupleArgument
-  | IntegerMod QuadrupleArgument QuadrupleArgument
-  | BoolAnd QuadrupleArgument QuadrupleArgument
-  | BoolOr QuadrupleArgument QuadrupleArgument
-  | BoolNot QuadrupleArgument
-  | StringConcat QuadrupleArgument QuadrupleArgument
-  | IntegerCompare QuadrupleArgument CompareOperation QuadrupleArgument
-  | BoolCompare QuadrupleArgument CompareOperation QuadrupleArgument
-  | StringCompare QuadrupleArgument CompareOperation QuadrupleArgument
-  | ReturnValue QuadrupleArgument
+  | IntegerAdd QuadrupleLocation QuadrupleLocation
+  | IntegerSub QuadrupleLocation QuadrupleLocation
+  | IntegerMul QuadrupleLocation QuadrupleLocation
+  | IntegerDiv QuadrupleLocation QuadrupleLocation
+  | IntegerMod QuadrupleLocation QuadrupleLocation
+  | BoolAnd QuadrupleLocation QuadrupleLocation
+  | BoolOr QuadrupleLocation QuadrupleLocation
+  | BoolNot QuadrupleLocation
+  | StringConcat QuadrupleLocation QuadrupleLocation
+  | IntegerCompare QuadrupleLocation CompareOperation QuadrupleLocation
+  | BoolCompare QuadrupleLocation CompareOperation QuadrupleLocation
+  | StringCompare QuadrupleLocation CompareOperation QuadrupleLocation
+  | ReturnValue QuadrupleLocation
   | ReturnVoid
-  | CallFunction Ident Type [QuadrupleArgument]
+  | CallFunction Ident Type [QuadrupleLocation]
 
 data QuadruplesCode 
   = QuadruplesCode {
@@ -80,28 +80,28 @@ getOperationType operation = case operation of
   (IntegerCompare _ _ _) -> Int
   (BoolCompare _ _ _) -> Bool
   (StringCompare _ _ _) -> String
-  (ReturnValue argument) -> getQuadrupleArgumentType argument
+  (ReturnValue argument) -> getQuadrupleLocationType argument
   (ReturnVoid) -> Void
   (CallFunction _ _type _) -> _type
 
 
 
-getQuadrupleArgumentType :: QuadrupleArgument -> Type
-getQuadrupleArgumentType (Register (TemporaryRegister _type _)) = _type
-getQuadrupleArgumentType (ConstValue (IntValue _)) = Int
-getQuadrupleArgumentType (ConstValue (BoolValue _)) = Bool
-getQuadrupleArgumentType (ConstValue (StringValue _)) = String
+getQuadrupleLocationType :: QuadrupleLocation -> Type
+getQuadrupleLocationType (Register (TemporaryRegister _type _)) = _type
+getQuadrupleLocationType (ConstValue (IntValue _)) = Int
+getQuadrupleLocationType (ConstValue (BoolValue _)) = Bool
+getQuadrupleLocationType (ConstValue (StringValue _)) = String
 -- 
 -- Patterns
 -- 
-pattern ConstInt :: Int -> QuadrupleArgument
+pattern ConstInt :: Int -> QuadrupleLocation
 pattern ConstInt x = ConstValue (IntValue x)
 
-pattern ConstBool :: Bool -> QuadrupleArgument
+pattern ConstBool :: Bool -> QuadrupleLocation
 pattern ConstBool x = ConstValue (BoolValue x)
 
-pattern ConstString :: String -> QuadrupleArgument
+pattern ConstString :: String -> QuadrupleLocation
 pattern ConstString x = ConstValue (StringValue x)
 
-pattern QuadrupleRegister :: Type -> Index -> QuadrupleArgument
+pattern QuadrupleRegister :: Type -> Index -> QuadrupleLocation
 pattern QuadrupleRegister _type register = Register (TemporaryRegister _type register)

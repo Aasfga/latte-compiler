@@ -51,7 +51,7 @@ getNewRegisterNumber = do
   modify $ over registerCounter (+1)
   return newRegisterNumber
 
-newVariable :: Type -> Ident -> Location -> FunctionTransformer ()
+newVariable :: Type -> Ident -> QuadrupleLocation -> FunctionTransformer ()
 newVariable _type ident location = do
   assertCanDefineVariable ident
   modifyCurrentScope (ident:)
@@ -90,7 +90,7 @@ getCurrentScope = do
     [] -> throwError $ InternalCompilerError "Scope list is empty"
     (x:_) -> return x
 
-getLocation :: Ident -> FunctionTransformer Location 
+getLocation :: Ident -> FunctionTransformer QuadrupleLocation 
 getLocation ident = do
   maybeInfo <- gets $ Map.lookup ident . view C.variables
   case maybeInfo of
@@ -121,7 +121,7 @@ modifyCurrentScope f = do
     [] -> throwError $ InternalCompilerError "Scope list is empty"
     (l:ls) -> modify $ set C.scopes (f l:ls)
 
-setLocation :: Ident -> Location -> FunctionTransformer ()
+setLocation :: Ident -> QuadrupleLocation -> FunctionTransformer ()
 setLocation ident location = do
   maybeInfo <- gets $ Map.lookup ident . view C.variables
   case maybeInfo of
@@ -173,9 +173,9 @@ assertReturnTypeIsCorrect actualType = do
   function <- gets $ view C.functionIdent
   unless (actualType == expectedType) (throwError $ TypeMissmatchReturn function expectedType actualType)
 
-assertLocationType :: Location -> Type -> FunctionTransformer ()
+assertLocationType :: QuadrupleLocation -> Type -> FunctionTransformer ()
 assertLocationType location actualType = do
-  let expectedType = getLocationType location
+  let expectedType = getQuadrupleLocationType location
   unless (expectedType == actualType) $ throwError $ TypeMissmatchAssigment expectedType actualType
 
 assertVariableType :: Ident -> Type -> FunctionTransformer ()
@@ -183,9 +183,9 @@ assertVariableType ident actualType = do
   location <- getLocation ident
   assertLocationType location actualType
 
-assertLocationIsBool :: Location -> FunctionTransformer ()
+assertLocationIsBool :: QuadrupleLocation -> FunctionTransformer ()
 assertLocationIsBool location = do
-  let locationType = getLocationType location
+  let locationType = getQuadrupleLocationType location
   unless (locationType == Bool) $ throwError $ TypeMissmatchIf locationType
 
 assertFinalBlocksHaveReturn :: [(BlockNumber, Bool)] -> FunctionTransformer ()
