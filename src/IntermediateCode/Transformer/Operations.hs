@@ -39,7 +39,7 @@ leaveQuadrupleBlock = do
 addQuadrupleOperation :: Q.QuadrupleOperation -> C.FunctionTransformer Q.TemporaryRegister
 addQuadrupleOperation operation = do
   newRegisterNumber <- getNewRegisterNumber
-  let operationType = Q.getOperationType operation
+  let operationType = getType operation
   let resultRegister = Q.TemporaryRegister operationType newRegisterNumber
   let quadruple = C.Quadruple $ Q.QuadrupleOperation resultRegister operation
   modifyCurrentBlock $ over C.code (quadruple:)
@@ -171,7 +171,7 @@ boolCompare first op second = do
 
 returnExpression :: Q.QuadrupleLocation -> C.FunctionTransformer ()
 returnExpression location = do
-  assertReturnTypeIsCorrect $ Q.getQuadrupleLocationType location
+  assertReturnTypeIsCorrect $ getType location
   let operation = Q.ReturnValue location
   void $ addQuadrupleOperation operation
 
@@ -183,7 +183,7 @@ returnVoid = do
 
 callFunction :: Ident -> [Q.QuadrupleLocation] -> C.FunctionTransformer Q.QuadrupleLocation
 callFunction ident locations = do
-  let locationTypes = map Q.getQuadrupleLocationType locations 
+  let locationTypes = map getType locations 
   (returnType, argumentTypes) <- lift $ getFunctionType ident
   unless (argumentTypes == locationTypes) $ throwError $ TypeMissmatchApplication ident argumentTypes locationTypes
   let operation = Q.CallFunction ident returnType locations

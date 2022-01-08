@@ -59,6 +59,32 @@ data FunctionCode
 $(makeLenses ''QuadruplesCode)
 $(makeLenses ''FunctionCode)
 -- 
+-- Instances
+-- 
+instance HasType QuadrupleLocation where
+  getType (QuadrupleRegister _type _) = _type
+  getType (ConstInt _) = Int
+  getType (ConstBool _) = Bool
+  getType (ConstString _) = String
+
+instance HasType QuadrupleOperation where
+  getType (ArgumentInit _ _type) = _type
+  getType (IntegerAdd _ _) = Int
+  getType (IntegerSub _ _) = Int
+  getType (IntegerMul _ _) = Int
+  getType (IntegerDiv _ _) = Int
+  getType (IntegerMod _ _) = Int
+  getType (BoolAnd _ _) = Bool
+  getType (BoolOr _ _) = Bool
+  getType (BoolNot _) = Bool
+  getType (StringConcat _ _) = String
+  getType (IntegerCompare _ _ _) = Int
+  getType (BoolCompare _ _ _) = Bool
+  getType (StringCompare _ _ _) = String
+  getType (ReturnValue argument) = getType argument
+  getType (ReturnVoid) = Void
+  getType (CallFunction _ _type _) = _type
+-- 
 -- Functions
 -- 
 emptyQuadruplesCode :: QuadruplesCode
@@ -66,33 +92,6 @@ emptyQuadruplesCode = QuadruplesCode Map.empty
 
 emptyFunction :: Type -> [Argument] -> FunctionCode
 emptyFunction retType args = FunctionCode Map.empty retType args
-
-getOperationType :: QuadrupleOperation -> Type
-getOperationType operation = case operation of
-  (ArgumentInit _ _type) -> _type
-  (IntegerAdd _ _) -> Int
-  (IntegerSub _ _) -> Int
-  (IntegerMul _ _) -> Int
-  (IntegerDiv _ _) -> Int
-  (IntegerMod _ _) -> Int
-  (BoolAnd _ _) -> Bool
-  (BoolOr _ _) -> Bool
-  (BoolNot _) -> Bool
-  (StringConcat _ _) -> String
-  (IntegerCompare _ _ _) -> Int
-  (BoolCompare _ _ _) -> Bool
-  (StringCompare _ _ _) -> String
-  (ReturnValue argument) -> getQuadrupleLocationType argument
-  (ReturnVoid) -> Void
-  (CallFunction _ _type _) -> _type
-
-
-
-getQuadrupleLocationType :: QuadrupleLocation -> Type
-getQuadrupleLocationType (Register (TemporaryRegister _type _)) = _type
-getQuadrupleLocationType (ConstInt _) = Int
-getQuadrupleLocationType (ConstBool _) = Bool
-getQuadrupleLocationType (ConstString _) = String
 -- 
 -- Patterns
 -- 

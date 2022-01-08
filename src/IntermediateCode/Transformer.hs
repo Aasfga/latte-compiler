@@ -52,7 +52,7 @@ transformExpression (AST.Not p expression) = do
 transformExpression (AST.Operation p firstExpression op secondExpression) = do
   firstLocation <- transformExpression firstExpression
   secondLocation <- transformExpression secondExpression
-  case (Q.getQuadrupleLocationType firstLocation, Q.getQuadrupleLocationType secondLocation) of
+  case (getType firstLocation, getType secondLocation) of
     (Int, Int) -> transformBinaryOperation Int op firstLocation secondLocation
     (Bool, Bool) -> transformBinaryOperation Bool op firstLocation secondLocation
     (String, String) -> transformBinaryOperation String op firstLocation secondLocation
@@ -60,7 +60,7 @@ transformExpression (AST.Operation p firstExpression op secondExpression) = do
 transformExpression (AST.Compare p firstExpression op secondExpression) = do
   firstLocation <- transformExpression firstExpression
   secondLocation <- transformExpression secondExpression
-  case (Q.getQuadrupleLocationType firstLocation, Q.getQuadrupleLocationType secondLocation) of
+  case (getType firstLocation, getType secondLocation) of
     (Int, Int) -> integerCompare firstLocation op secondLocation
     (Bool, Bool) -> boolCompare firstLocation op secondLocation
     (String, String) -> stringCompare firstLocation op secondLocation
@@ -72,7 +72,7 @@ transformDeclaration _type (AST.NoInit p ident) = do
   newVariable _type ident constValue
 transformDeclaration _type (AST.Init p ident expression) = do
   expressionLocation <- transformExpression expression
-  let expressionType = Q.getQuadrupleLocationType expressionLocation
+  let expressionType = getType expressionLocation
   assertLocationType expressionLocation _type
   newVariable _type ident expressionLocation
 
@@ -91,7 +91,7 @@ transformStatement' (AST.Declaration _ _type declarations) = do
   return []
 transformStatement' (AST.Assigment p ident expression) = do
   expressionLocation <- transformExpression expression
-  let expressionType = Q.getQuadrupleLocationType expressionLocation
+  let expressionType = getType expressionLocation
   assertVariableType ident expressionType
   setLocation ident expressionLocation
   return []

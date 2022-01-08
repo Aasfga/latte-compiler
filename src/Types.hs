@@ -90,10 +90,6 @@ instance HasIdent Argument where
 -- 
 -- Functions
 -- 
--- Functions
-getArgumentType :: Argument -> Type
-getArgumentType (Argument _type _) = _type
-
 getCompareFunction :: Ord a => CompareOperation -> a -> a -> Bool
 getCompareFunction LTH = (<)
 getCompareFunction LE = (<=)

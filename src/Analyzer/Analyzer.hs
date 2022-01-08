@@ -141,7 +141,7 @@ analyzeFunction (AST.Function _ _type ident arguments block) = do
 
 addFunctionsToScope :: Function' a -> AnalyzerState ()
 addFunctionsToScope (AST.Function _ _type ident arguments _) = do
-  let argumentTypes = map getArgumentType arguments
+  let argumentTypes = map getType arguments
   addSymbol ident (T.Function _type argumentTypes)
 
 addLibraryFunctions :: AnalyzerState ()

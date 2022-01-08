@@ -23,7 +23,7 @@ getFunctionType ident = do
     Nothing -> throwError $ SymbolNotFound ident
     Just function -> do
       let returnType = view Q.returnType function
-      let argumentTypes = map getArgumentType $ view Q.arguments function
+      let argumentTypes = map getType $ view Q.arguments function
       return (returnType, argumentTypes)
 
 defineGlobalSymbols :: Program -> GlobalTransformer ()
@@ -150,7 +150,7 @@ assertMainExists = do
   unless (isJust maybeMainFunction) (throwError $ SymbolNotFound "main")
   let mainFunction = fromJust maybeMainFunction
   let retType = view Q.returnType mainFunction
-  let argTypes = map getArgumentType $ view Q.arguments mainFunction
+  let argTypes = map getType $ view Q.arguments mainFunction
   unless (retType == Int && null argTypes) (throwError $ SymbolNotFound "main")
 
 assertCanDefineSymbol :: Ident -> GlobalTransformer ()
@@ -176,7 +176,7 @@ assertReturnTypeIsCorrect actualType = do
 
 assertLocationType :: QuadrupleLocation -> Type -> FunctionTransformer ()
 assertLocationType location actualType = do
-  let expectedType = getQuadrupleLocationType location
+  let expectedType = getType location
   unless (expectedType == actualType) $ throwError $ TypeMissmatchAssigment expectedType actualType
 
 assertVariableType :: Ident -> Type -> FunctionTransformer ()
@@ -186,7 +186,7 @@ assertVariableType ident actualType = do
 
 assertLocationIsBool :: QuadrupleLocation -> FunctionTransformer ()
 assertLocationIsBool location = do
-  let locationType = getQuadrupleLocationType location
+  let locationType = getType location
   unless (locationType == Bool) $ throwError $ TypeMissmatchIf locationType
 
 assertFinalBlocksHaveReturn :: [(BlockNumber, Bool)] -> FunctionTransformer ()
