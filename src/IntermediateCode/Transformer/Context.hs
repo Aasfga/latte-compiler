@@ -75,9 +75,7 @@ instance Show BlockContext where
       pb = view previousBlocks block
       return = view hasReturn block
       fv = view finalVariables block
-      keys = Map.keys fv
-      values = map (\k -> Map.lookup k fv) keys
-      tuples = zip values keys
+      tuples = Map.toList fv
       c = concat $ intersperse "\n" $ map show $ reverse $ view code block
 
     in

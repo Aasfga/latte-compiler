@@ -184,6 +184,7 @@ transformStatement' (AST.While _ expression statement) = do
   addConditionalJumpPlaceholder expressionLocation
   leaveQuadrupleBlock
   (loopBlockNumber, (finalBlocks, areFinalBlocksAlive)) <- transformBlock dummyBlock currentAlive
+  mapM_ (\b -> modifyBlock b $ over C.code (C.JumpPlaceholder:)) finalBlocks
   addQuadrupleEdge currentBlockNumber conditionBlockNumber
   addQuadrupleEdge conditionBlockNumber loopBlockNumber
   mapM_ (\s -> addQuadrupleEdge s conditionBlockNumber) finalBlocks
