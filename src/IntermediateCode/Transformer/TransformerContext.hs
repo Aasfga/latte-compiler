@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module IntermediateCode.TransformerContext where
+module IntermediateCode.Transformer.TransformerContext where
 
 import qualified Data.Map as Map
 import Control.Monad.State
@@ -26,12 +26,13 @@ data BlockContext
     _previousBlocks :: [BlockNumber],
     _nextBlocks :: [BlockNumber],
     _isAlive :: Bool,
-    _code :: [PreQuadruple]
+    _code :: [PreQuadruple],
+    _hasReturn :: Bool
   }
 
 data FunctionContext 
   = FunctionContext {
-    _functionName :: Ident, 
+    _functionIdent :: Ident, 
     _returnType :: Type,
     _arguments  :: [Argument],
     _blockCounter :: Int,
@@ -54,8 +55,8 @@ type FunctionTransformer = StateT FunctionContext GlobalTransformer
 emptyGlobalContext :: QuadruplesCode
 emptyGlobalContext = emptyQuadruplesCode
 
-emptyBlockContext :: BlockNumber -> BlockContext
-emptyBlockContext block = BlockContext block Map.empty [] [] True []
+emptyBlockContext :: BlockNumber -> Bool -> BlockContext
+emptyBlockContext block isAlive = BlockContext block Map.empty [] [] isAlive [] False
 
 emptyFunctionContext :: Type -> Ident -> [Argument] -> FunctionContext
 emptyFunctionContext retType ident args =

@@ -4,6 +4,7 @@ import Parser.Parser ( parse )
 import Analyzer.Analyzer
 import System.IO
 import System.Exit
+import IntermediateCode.Transformer
 
 
 main :: IO ()
@@ -15,7 +16,7 @@ main = do
       print latteError
       exitWith $ ExitFailure 1
     Right abstractSyntax ->
-      case runAnalyzer abstractSyntax of
+      case transformToQuadruples abstractSyntax of
         Left latteError -> do
           hPutStrLn stderr "ERROR\n"
           print latteError

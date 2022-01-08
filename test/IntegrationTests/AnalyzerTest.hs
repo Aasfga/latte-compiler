@@ -5,11 +5,13 @@ import Parser.Parser ( parse )
 import Analyzer.Analyzer ( runAnalyzer )
 import Data.Maybe ( isJust, isNothing )
 import IntegrationTests.Generator (IntegrationTest)
+import IntermediateCode.Transformer
 
 runner :: String -> Either LatteError ()
 runner code = do
   ast <- parse code
-  runAnalyzer ast
+  transformToQuadruples ast
+  return ()
 
 analyzerIntegrationTest :: IntegrationTest
 analyzerIntegrationTest (code, output) = 

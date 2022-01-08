@@ -1,6 +1,7 @@
+{-# LANGUAGE PatternSynonyms #-}
 module IntermediateCode.Definitions.AbstractSyntaxTree where
 
-import Types ( Argument, Position, Ident, Type, Value, Operation, CompareOperation )
+import Types ( Argument, Position (..), Ident, Type, Value, Operation, CompareOperation )
 
 
 -- Definitions
@@ -46,9 +47,9 @@ data Expression' a
     | Operation a (Expression' a) Operation (Expression' a)
     | Compare a (Expression' a) CompareOperation (Expression' a)
   deriving (Eq, Ord, Show, Read)
-
-
+-- 
 -- Instances
+-- 
 instance Functor Program' where
   fmap f (Program a functions) = Program (f a) (map (fmap f) functions)
 
@@ -87,3 +88,8 @@ instance Functor Expression' where
         Not a expr -> Not (f a) (fmap f expr)
         Operation a expr1 op expr2 -> Operation (f a) (fmap f expr1) op (fmap f expr2)
         Compare a expr1 op expr2 -> Compare (f a) (fmap f expr1) op (fmap f expr2)
+-- 
+-- Patterns
+-- 
+pattern DummyBlock :: Statement -> Block
+pattern DummyBlock statement = Block NoPosition [statement]
