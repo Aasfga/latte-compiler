@@ -32,52 +32,55 @@ transformBinaryOperation Int Mod = integerMod
 transformBinaryOperation Bool And = boolAnd
 transformBinaryOperation Bool Or = boolOr
 transformBinaryOperation String Plus = stringConcat
-transformBinaryOperation _type op = (\_ _ -> throwLatteError $ TypeMissmatchBinaryOperator _type _type op)
+transformBinaryOperation _type op = (\_ _ -> throwErrorFunction $ TypeMissmatchBinaryOperator _type _type op)
 
-transformExpression :: AST.Expression -> C.FunctionTransformer Q.QuadrupleLocation 
-transformExpression (AST.Variable p ident) = getLocation ident
-transformExpression (AST.Value p (AST.IntegerValue x)) = do 
-  -- unless (minBound :: Int) <= x && x <= maxInt) $ throwError $ IntegerOutOfBound x
+transformExpression' :: AST.Expression -> C.FunctionTransformer Q.QuadrupleLocation 
+transformExpression' (AST.Variable _ ident) = getLocation ident
+transformExpression' (AST.Value _ (AST.IntegerValue x)) = do 
+  let minValue = toInteger (minBound :: Int)
+  let maxValue = toInteger (maxBound :: Int)
+  unless (minValue < x && x < maxValue) $ throwErrorFunction $ IntegerOutOfBound x
   return $ Q.ConstInt $ fromIntegral x
-transformExpression (AST.Value _ (AST.BoolValue x)) = return $ Q.ConstBool x
-transformExpression (AST.Value _ (AST.StringValue x)) = return $ Q.ConstString x
-transformExpression (AST.Application p ident expressions) = do
-  savePosition p
+transformExpression' (AST.Value _ (AST.BoolValue x)) = return $ Q.ConstBool x
+transformExpression' (AST.Value _ (AST.StringValue x)) = return $ Q.ConstString x
+transformExpression' (AST.Application _ ident expressions) = do
   locations <- mapM transformExpression expressions
   callFunction ident locations
-transformExpression (AST.Neg p expression) = do
-  savePosition p
+transformExpression' (AST.Neg _ expression) = do
   location <- transformExpression expression
   integerSub (Q.ConstInt 0) location
-transformExpression (AST.Not p expression) = do
-  savePosition p
+transformExpression' (AST.Not _ expression) = do
   location <- transformExpression expression
   boolNot location 
-transformExpression (AST.Operation p firstExpression op secondExpression) = do
-  savePosition p
+transformExpression' (AST.Operation _ firstExpression op secondExpression) = do
   firstLocation <- transformExpression firstExpression
   secondLocation <- transformExpression secondExpression
   case (getType firstLocation, getType secondLocation) of
     (Int, Int) -> transformBinaryOperation Int op firstLocation secondLocation
     (Bool, Bool) -> transformBinaryOperation Bool op firstLocation secondLocation
     (String, String) -> transformBinaryOperation String op firstLocation secondLocation
-    (firstType, secondType) -> throwLatteError $ TypeMissmatchBinaryOperator firstType secondType op
-transformExpression (AST.Compare p firstExpression op secondExpression) = do
-  savePosition p
+    (firstType, secondType) -> throwErrorFunction $ TypeMissmatchBinaryOperator firstType secondType op
+transformExpression' (AST.Compare _ firstExpression op secondExpression) = do
   firstLocation <- transformExpression firstExpression
   secondLocation <- transformExpression secondExpression
   case (getType firstLocation, getType secondLocation) of
     (Int, Int) -> integerCompare firstLocation op secondLocation
     (Bool, Bool) -> boolCompare firstLocation op secondLocation
     (String, String) -> stringCompare firstLocation op secondLocation
-    (firstType, secondType) -> throwLatteError $ TypeMissmatchCompare firstType secondType
+    (firstType, secondType) -> throwErrorFunction $ TypeMissmatchCompare firstType secondType
+
+transformExpression :: AST.Expression -> C.FunctionTransformer Q.QuadrupleLocation
+transformExpression expression = do
+  lift $ savePosition $ getPosition expression
+  transformExpression' expression
 
 transformDeclaration :: Type -> AST.Declaration -> C.FunctionTransformer ()
 transformDeclaration _type (AST.NoInit p ident) = do
-  savePosition p
+  lift $ savePosition p
   constValue <- getDefaultConstValue _type
   newVariable _type ident constValue
 transformDeclaration _type (AST.Init p ident expression) = do
+  lift $ savePosition p
   expressionLocation <- transformExpression expression
   let expressionType = getType expressionLocation
   assertLocationType expressionLocation _type
@@ -92,8 +95,7 @@ defaultStatementReturn = do
 
 transformStatement' :: AST.Statement -> C.FunctionTransformer StatementReturn
 transformStatement' (AST.Empty _) = return ([], True)
-transformStatement' (AST.InnerBlock p block) = do
-  savePosition p
+transformStatement' (AST.InnerBlock _ block) = do
   currentAlive <- view C.isAlive <$> getCurrentBlock
   currentBlockNumber <- getCurrentBlockNumber
   addJumpPlaceholder
@@ -102,49 +104,38 @@ transformStatement' (AST.InnerBlock p block) = do
   let (finalBlocks, areFinalBlocksAlive) = result
   addQuadrupleEdge currentBlockNumber newBlockNumber
   return result
-transformStatement' (AST.Declaration p _type declarations) = do
-  savePosition p
+transformStatement' (AST.Declaration _ _type declarations) = do
   mapM_ (transformDeclaration _type) declarations
   defaultStatementReturn
-transformStatement' (AST.Assigment p ident expression) = do
-  savePosition p
+transformStatement' (AST.Assigment _ ident expression) = do
   expressionLocation <- transformExpression expression
   let expressionType = getType expressionLocation
   assertVariableType ident expressionType
   setLocation ident expressionLocation
   defaultStatementReturn
-transformStatement' (AST.Increment p ident) = do
-  savePosition p
+transformStatement' (AST.Increment _ ident) = do
   assertVariableType ident Int
   location <- getLocation ident
   newLocation <- integerAdd location (Q.ConstInt 1)
   setLocation ident newLocation
   defaultStatementReturn
-transformStatement' (AST.Decrement p ident) = do
-  savePosition p
+transformStatement' (AST.Decrement _ ident) = do
   assertVariableType ident Int
   location <- getLocation ident
   newLocation <- integerSub location (Q.ConstInt 1)
   setLocation ident newLocation
   defaultStatementReturn
-transformStatement' (AST.Return p expression) = do
-  savePosition p
+transformStatement' (AST.Return _ expression) = do
   expressionLocation <- transformExpression expression
   returnExpression expressionLocation
   modifyCurrentBlock $ set C.hasReturn True
   defaultStatementReturn
-  -- leaveQuadrupleBlock
-  -- return ([currentBlockNumber], False)
-transformStatement' (AST.VoidReturn p) = do
-  savePosition p
+transformStatement' (AST.VoidReturn _) = do
   currentBlockNumber <- getCurrentBlockNumber
   returnVoid
   modifyCurrentBlock $ set C.hasReturn True
   defaultStatementReturn
-  -- leaveQuadrupleBlock
-  -- return ([currentBlockNumber], False)
-transformStatement' (AST.If p expression statement) = do
-  savePosition p
+transformStatement' (AST.If _ expression statement) = do
   let dummyBlock = AST.DummyBlock statement
   currentAlive <- view C.isAlive <$> getCurrentBlock
   currentBlockNumber <- getCurrentBlockNumber
@@ -159,8 +150,7 @@ transformStatement' (AST.If p expression statement) = do
   let (finalBlocks, areFinalBlocksAlive) = result
   addQuadrupleEdge currentBlockNumber newBlockNumber
   return (if not cond then currentBlockNumber:finalBlocks else finalBlocks, currentAlive || areFinalBlocksAlive)
-transformStatement' (AST.IfElse p expression ifStatement elseStatement) = do
-  savePosition p
+transformStatement' (AST.IfElse _ expression ifStatement elseStatement) = do
   let ifBlock = AST.DummyBlock ifStatement
   let elseBlock = AST.DummyBlock elseStatement
   currentAlive <- view C.isAlive <$> getCurrentBlock
@@ -177,8 +167,7 @@ transformStatement' (AST.IfElse p expression ifStatement elseStatement) = do
   addQuadrupleEdge currentBlockNumber ifBlockNumber
   addQuadrupleEdge currentBlockNumber elseBlockNumber 
   return (ifFinals ++ elseFinals, ifAlive || elseAlive)
-transformStatement' (AST.While p expression statement) = do
-  savePosition p
+transformStatement' (AST.While _ expression statement) = do
   let dummyBlock = AST.DummyBlock statement
   currentBlockNumber <- getCurrentBlockNumber
   currentAlive <- view C.isAlive <$> getCurrentBlock
@@ -197,13 +186,18 @@ transformStatement' (AST.While p expression statement) = do
   addQuadrupleEdge conditionBlockNumber loopBlockNumber
   mapM_ (\s -> addQuadrupleEdge s conditionBlockNumber) finalBlocks
   return ([conditionBlockNumber], currentAlive)
-transformStatement' (AST.Expression p expression) = do
+transformStatement' (AST.Expression _ expression) = do
   _ <- transformExpression expression
   defaultStatementReturn
 
 transformStatement :: StatementReturn -> AST.Statement -> C.FunctionTransformer StatementReturn
-transformStatement ([], _) statement = transformStatement' statement
+transformStatement ([], _) statement = do
+  let position = getPosition statement
+  lift $ savePosition position
+  transformStatement' statement
 transformStatement (finalBlocks, anyAlive) statement = do
+  let position = getPosition statement
+  lift $ savePosition position
   assertNotInQuadrupleBlock
   newBlockNumber <- newQuadrupleBlock anyAlive
   mapM_ (\s -> addQuadrupleEdge s newBlockNumber) finalBlocks
@@ -211,7 +205,7 @@ transformStatement (finalBlocks, anyAlive) statement = do
 
 transformBlock :: AST.Block -> Bool -> C.FunctionTransformer (Q.BlockNumber, StatementReturn)
 transformBlock (AST.Block p statements) isAlive = do
-  savePosition p
+  lift $ savePosition p
   newBlockNumber <- newQuadrupleBlock isAlive
   newScope
   (returnedBlocks, areFinalBlocksAlive) <- foldM transformStatement ([], isAlive) statements
@@ -223,7 +217,8 @@ transformBlock (AST.Block p statements) isAlive = do
   return (newBlockNumber, (finalBlocks, areFinalBlocksAlive))
 
 transformFunction :: AST.Block -> C.FunctionTransformer ()
-transformFunction (AST.Block _ statements) = do
+transformFunction (AST.Block p statements) = do
+  lift $ savePosition p
   newScope
   x <- newQuadrupleBlock True
   modifyCurrentBlock $ set C.isAlive True
@@ -234,7 +229,6 @@ transformFunction (AST.Block _ statements) = do
   gentlyLeaveQuadrupleBlock
   removeScope
   assertFinalBlocksHaveReturn
-  assertFinalBlocksHaveReturn2
 
 transformGlobalSymbolToQuadruples :: AST.GlobalSymbol -> C.GlobalTransformer ()
 transformGlobalSymbolToQuadruples (AST.Function _ returnType functionName arguments block) = do
@@ -242,23 +236,23 @@ transformGlobalSymbolToQuadruples (AST.Function _ returnType functionName argume
   return ()
 
 transformProgram :: AST.Program -> C.GlobalTransformer ()
-transformProgram (AST.Program p globalSymbols) = do
+transformProgram (AST.Program _ globalSymbols) = do
   defineGlobalSymbols globalSymbols
   mapM_ transformGlobalSymbolToQuadruples globalSymbols
   assertMainExists
 
-transformToQuadruples :: AST.Program -> Either (LatteError, Position) Q.QuadruplesCode
-transformToQuadruples program = case runGlobalTransformer transformProgram program of
+transformToQuadruples :: AST.Program -> Either (LatteError, Position) C.GlobalContext
+transformToQuadruples program = case runGlobalTransformer program of
     Left error -> Left error
     Right (_, code) -> Right code
 -- 
 -- Transformers
 -- 
-runGlobalTransformer :: (AST.Program -> C.GlobalTransformer ()) -> AST.Program -> Either (LatteError, Position) ((), Q.QuadruplesCode)
-runGlobalTransformer transformer program = let
+runGlobalTransformer :: AST.Program -> Either (LatteError, Position) ((), C.GlobalContext)
+runGlobalTransformer program = let
     initialState = C.emptyGlobalContext 
   in
-    runStateT (transformer program) initialState
+    runStateT (transformProgram program) initialState
 
 runFunctionTransformer :: Type -> Ident -> [Argument] -> AST.Block -> C.GlobalTransformer ((), C.FunctionContext)
 runFunctionTransformer returnType functionIdent arguments block = let

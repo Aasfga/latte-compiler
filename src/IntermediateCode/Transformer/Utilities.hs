@@ -16,16 +16,20 @@ import Debug.Trace
 -- 
 -- Global context functions
 --
-getFunctionType :: Ident -> C.GlobalTransformer (Maybe (Type, [Type]))
+throwErrorGlobal :: LatteError -> C.GlobalTransformer a
+throwErrorGlobal latteError = do
+  position <- view C.position <$> get
+  throwError (latteError, position)
+
+getFunctionType :: Ident -> C.GlobalTransformer (Type, [Type])
 getFunctionType ident = do
-  maybeFunction <- Map.lookup ident . view Q.functions <$> get
+  maybeFunction <- Map.lookup ident . view (C.quadruplesCode . Q.functions) <$> get
   case maybeFunction of 
-    -- Nothing -> throwError $ (SymbolNotFound ident, NoPosition)
-    Nothing -> return Nothing
+    Nothing -> throwErrorGlobal $ SymbolNotFound ident
     Just function -> do
       let returnType = view Q.returnType function
       let argumentTypes = map getType $ view Q.arguments function
-      return $ Just (returnType, argumentTypes)
+      return (returnType, argumentTypes)
 
 defineGlobalSymbols :: [AST.GlobalSymbol] -> C.GlobalTransformer ()
 defineGlobalSymbols globalSymbols = do
@@ -36,17 +40,15 @@ newGlobalSymbol :: AST.GlobalSymbol -> C.GlobalTransformer ()
 newGlobalSymbol (AST.Function _ retType ident args _) = do
   assertCanDefineFunction ident
   let newFunction = Q.emptyFunction retType args
-  modify $ over Q.functions (Map.insert ident newFunction)
+  modify $ over (C.quadruplesCode . Q.functions) (Map.insert ident newFunction)
 -- 
 -- Function context functions
 -- 
-savePosition :: Position -> C.FunctionTransformer ()
+savePosition :: Position -> C.GlobalTransformer ()
 savePosition position = modify $ set C.position position
 
-throwLatteError :: LatteError -> C.FunctionTransformer a
-throwLatteError latteError = do
-  position <- view C.position <$> get
-  throwError $ (latteError, position)
+throwErrorFunction :: LatteError -> C.FunctionTransformer a
+throwErrorFunction latteError = lift $ throwErrorGlobal latteError
 
 getNewBlockNumber :: C.FunctionTransformer Q.BlockNumber
 getNewBlockNumber = do
@@ -71,7 +73,7 @@ removeVariable ident = do
   maybeDefinitions <- Map.lookup ident . view C.variables <$> get
   case maybeDefinitions of
     Just (_:xs) -> modify $ over C.variables (Map.insert ident xs)
-    _ -> throwLatteError $ InternalCompilerError ("Variable " ++ ident ++ " not defined")
+    _ -> throwErrorFunction $ InternalCompilerError ("Variable " ++ ident ++ " not defined")
 
 newScope :: C.FunctionTransformer ()
 newScope = do
@@ -89,29 +91,29 @@ getCurrentBlockNumber :: C.FunctionTransformer Q.BlockNumber
 getCurrentBlockNumber = do
   maybeBlockNumber <- view C.currentBlockNumber <$> get
   case maybeBlockNumber of
-    Nothing -> throwLatteError $ InternalCompilerError "No block is specified as current"
+    Nothing -> throwErrorFunction $ InternalCompilerError "No block is specified as current"
     Just blockNumber -> return blockNumber
 
 getCurrentScope :: C.FunctionTransformer [Ident]
 getCurrentScope = do
   scopes <- view C.scopes <$> get
   case scopes of  
-    [] -> throwLatteError $ InternalCompilerError "Scope list is empty"
+    [] -> throwErrorFunction $ InternalCompilerError "Scope list is empty"
     (x:_) -> return x
 
 getLocation :: Ident -> C.FunctionTransformer Q.QuadrupleLocation 
 getLocation ident = do
   maybeInfo <- gets $ Map.lookup ident . view C.variables
   case maybeInfo of
-    Nothing -> throwLatteError $ SymbolNotFound ident
-    Just [] -> throwLatteError $ SymbolNotFound ident
+    Nothing -> throwErrorFunction $ SymbolNotFound ident
+    Just [] -> throwErrorFunction $ SymbolNotFound ident
     Just (x:_) -> return x
 
 getBlock :: Q.BlockNumber -> C.FunctionTransformer C.BlockContext  
 getBlock blockNumber = do
   maybeBlock <- gets $ Map.lookup blockNumber . view C.blocks
   case maybeBlock of 
-    Nothing -> throwLatteError $ InternalCompilerError "Not able to find block with given block number"
+    Nothing -> throwErrorFunction $ InternalCompilerError "Not able to find block with given block number"
     Just block -> return block
 
 getCurrentBlock :: C.FunctionTransformer C.BlockContext    
@@ -127,22 +129,22 @@ modifyCurrentScope :: ([Ident] -> [Ident]) -> C.FunctionTransformer ()
 modifyCurrentScope f = do
   scopes <- view C.scopes <$> get
   case scopes of
-    [] -> throwLatteError $ InternalCompilerError "Scope list is empty"
+    [] -> throwErrorFunction $ InternalCompilerError "Scope list is empty"
     (l:ls) -> modify $ set C.scopes (f l:ls)
 
 setLocation :: Ident -> Q.QuadrupleLocation -> C.FunctionTransformer ()
 setLocation ident location = do
   maybeInfo <- gets $ Map.lookup ident . view C.variables
   case maybeInfo of
-    Nothing -> throwLatteError $ SymbolNotFound ident
-    Just [] -> throwLatteError $ InternalCompilerError "Not able to find information about given variable" 
+    Nothing -> throwErrorFunction $ SymbolNotFound ident
+    Just [] -> throwErrorFunction $ InternalCompilerError "Not able to find information about given variable" 
     Just (_:xs) -> modify $ over C.variables (Map.insert ident (location:xs))
 
 modifyBlock :: Q.BlockNumber -> (C.BlockContext -> C.BlockContext) -> C.FunctionTransformer ()
 modifyBlock blockNumber f = do
   isMember <- gets $ Map.member blockNumber . view C.blocks
   case isMember of
-    False -> throwLatteError $ InternalCompilerError "Not able to find block with given block number"
+    False -> throwErrorFunction $ InternalCompilerError "Not able to find block with given block number"
     True -> modify $ over C.blocks (Map.update (Just . f) blockNumber)
   
 modifyCurrentBlock :: (C.BlockContext -> C.BlockContext) -> C.FunctionTransformer ()
@@ -154,38 +156,34 @@ modifyCurrentBlock f = do
 -- 
 assertMainExists :: C.GlobalTransformer ()
 assertMainExists = do
-  maybeMainFunction <- Map.lookup "main" . view Q.functions <$> get
-  unless (isJust maybeMainFunction) (throwError $ (SymbolNotFound "main", NoPosition))
-  let mainFunction = fromJust maybeMainFunction
-  let retType = view Q.returnType mainFunction
-  let argTypes = map getType $ view Q.arguments mainFunction
-  unless (retType == Int && null argTypes) (throwError $ (SymbolNotFound "main", NoPosition))
+  (returnType, argumentTypes) <- getFunctionType "main"
+  unless (returnType == Int && null argumentTypes) (throwError $ (SymbolNotFound "main", NoPosition))
 
 assertCanDefineFunction :: Ident -> C.GlobalTransformer ()
 assertCanDefineFunction ident = do
-  canDefine <- not . Map.member ident . view Q.functions <$> get
+  canDefine <- not . Map.member ident . view (C.quadruplesCode .Q.functions) <$> get
   unless canDefine (throwError $ (SymbolInScope ident, NoPosition))
 
 assertNotInQuadrupleBlock :: C.FunctionTransformer ()
 assertNotInQuadrupleBlock = do
   maybeBlockNumber <- view C.currentBlockNumber <$> get
-  unless (isNothing maybeBlockNumber) $ throwLatteError $ InternalCompilerError "Assertion: not in quadruple block"
+  unless (isNothing maybeBlockNumber) $ throwErrorFunction $ InternalCompilerError "Assertion: not in quadruple block"
 
 assertCanDefineVariable :: Ident -> C.FunctionTransformer ()
 assertCanDefineVariable ident = do
   isInScope <- elem ident <$> getCurrentScope
-  unless (not isInScope) (throwLatteError $ SymbolInScope ident)
+  unless (not isInScope) (throwErrorFunction $ SymbolInScope ident)
 
 assertReturnTypeIsCorrect :: Type -> C.FunctionTransformer ()
 assertReturnTypeIsCorrect actualType = do
   expectedType <- gets $ view C.returnType
   function <- gets $ view C.functionIdent
-  unless (actualType == expectedType) (throwLatteError $ TypeMissmatchReturn function expectedType actualType)
+  unless (actualType == expectedType) (throwErrorFunction $ TypeMissmatchReturn function expectedType actualType)
 
 assertLocationType :: Q.QuadrupleLocation -> Type -> C.FunctionTransformer ()
 assertLocationType location actualType = do
   let expectedType = getType location
-  unless (expectedType == actualType) $ throwLatteError $ TypeMissmatchAssigment expectedType actualType
+  unless (expectedType == actualType) $ throwErrorFunction $ TypeMissmatchAssigment expectedType actualType
 
 assertVariableType :: Ident -> Type -> C.FunctionTransformer ()
 assertVariableType ident actualType = do
@@ -195,38 +193,39 @@ assertVariableType ident actualType = do
 assertLocationIsBool :: Q.QuadrupleLocation -> C.FunctionTransformer ()
 assertLocationIsBool location = do
   let locationType = getType location
-  unless (locationType == Bool) $ throwLatteError $ TypeMissmatchIf locationType
+  unless (locationType == Bool) $ throwErrorFunction $ TypeMissmatchIf locationType
+
+
+assertFinalBlocksHaveReturnPath :: C.FunctionTransformer ()
+assertFinalBlocksHaveReturnPath = do
+  returnType <- view C.returnType <$> get
+  functionIdent <- view C.functionIdent <$> get
+  blocks <- Map.elems . view C.blocks <$> get
+  let aliveBlocks = filter (view C.isAlive) blocks
+  let finalBlocks = filter (null . view C.nextBlocks) aliveBlocks
+  let invalidBlocks = filter (not . view C.hasReturn) finalBlocks 
+  let latteError = MissingReturn functionIdent returnType
+  unless (null invalidBlocks) $ throwErrorFunction $ latteError
+  unless (not $ null finalBlocks) $ throwErrorFunction $ latteError
+
+assertFinalBlocksHaveReturnFinalBlocks :: C.FunctionTransformer ()
+assertFinalBlocksHaveReturnFinalBlocks = do
+  returnType <- view C.returnType <$> get
+  functionIdent <- view C.functionIdent <$> get
+  savedFinalBlockNumbers <- view C.finalBlocks <$> get
+  savedFinalBlocks <- mapM getBlock savedFinalBlockNumbers
+  let aliveBlocks = filter (view C.isAlive) savedFinalBlocks
+  let invalidBlocks = filter (not . view C.hasReturn) aliveBlocks
+  unless (null invalidBlocks) $ throwErrorFunction $ MissingReturn  functionIdent returnType 
 
 assertFinalBlocksHaveReturn :: C.FunctionTransformer ()
 assertFinalBlocksHaveReturn = do
   returnType <- view C.returnType <$> get
-  functionIdent <- view C.functionIdent <$> get
-  blocks <- Map.elems . view C.blocks <$> get
-  savedFinalBlockNumbers <- view C.finalBlocks <$> get
-  savedFinalBlocks <- mapM getBlock savedFinalBlockNumbers
-  let aliveBlocks = filter (view C.isAlive) $ traceShowId blocks
-  let finalBlocks = filter (null . view C.nextBlocks) $ traceShowId aliveBlocks
-  let invalidBlocks = filter (not . view C.hasReturn) $ traceShowId finalBlocks
   case returnType of
     Void -> return ()
     _ -> do
-      let latteError = MissingReturn  functionIdent returnType 
-      unless (null invalidBlocks) $ throwLatteError $ InternalCompilerError "A"
-      unless (not $ null finalBlocks) $ throwLatteError $ InternalCompilerError "B"
-
-assertFinalBlocksHaveReturn2 :: C.FunctionTransformer ()
-assertFinalBlocksHaveReturn2 = do
-  returnType <- view C.returnType <$> get
-  functionIdent <- view C.functionIdent <$> get
-  savedFinalBlockNumbers <- view C.finalBlocks <$> get
-  savedFinalBlocks <- mapM getBlock $ traceShowId savedFinalBlockNumbers
-  let aliveBlocks = filter (view C.isAlive) $ traceShowId savedFinalBlocks
-  let invalidBlocks = filter (not . view C.hasReturn) $ traceShowId aliveBlocks
-  case returnType of
-    Void -> return ()
-    _ -> do
-      let latteError = MissingReturn  functionIdent returnType 
-      unless (null invalidBlocks) $ throwLatteError $ InternalCompilerError "A"
+      assertFinalBlocksHaveReturnPath
+      assertFinalBlocksHaveReturnFinalBlocks
 -- 
 -- Other
 -- 
@@ -234,7 +233,7 @@ getDefaultConstValue :: Type -> C.FunctionTransformer Q.QuadrupleLocation
 getDefaultConstValue Int = return $ Q.ConstInt 0
 getDefaultConstValue String = return $ Q.ConstString ""
 getDefaultConstValue Bool = return $ Q.ConstBool False
-getDefaultConstValue _type = throwLatteError $ InternalCompilerError ("No default value for type " ++ show _type)
+getDefaultConstValue _type = throwErrorFunction $ InternalCompilerError ("No default value for type " ++ show _type)
 
 libraryFunctions :: [AST.GlobalSymbol]
 libraryFunctions = let 

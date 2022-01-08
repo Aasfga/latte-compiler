@@ -39,28 +39,31 @@ data FunctionContext
     _variables :: Map.Map Ident [Q.QuadrupleLocation],
     _currentBlockNumber :: Maybe Q.BlockNumber,
     _blocks :: Map.Map Int BlockContext,
-    _position :: Position,
     _finalBlocks :: [Q.BlockNumber]
   }
 
-type GlobalContext = Q.QuadruplesCode 
+data GlobalContext 
+  = GlobalContext {
+    _quadruplesCode :: Q.QuadruplesCode,
+    _position :: Position
+  }
 
 $(makeLenses ''BlockContext)
 $(makeLenses ''FunctionContext)
--- $(makeLenses ''VariableInfo)
+$(makeLenses ''GlobalContext)
 
 type GlobalTransformer = StateT GlobalContext (Either (LatteError, Position))
 type FunctionTransformer = StateT FunctionContext GlobalTransformer
 
-emptyGlobalContext :: Q.QuadruplesCode
-emptyGlobalContext = Q.emptyQuadruplesCode
+emptyGlobalContext :: GlobalContext 
+emptyGlobalContext = GlobalContext Q.emptyQuadruplesCode NoPosition
 
 emptyBlockContext :: Q.BlockNumber -> Bool -> BlockContext
 emptyBlockContext block isAlive = BlockContext block Map.empty [] [] isAlive [] False
 
 emptyFunctionContext :: Type -> Ident -> [Argument] -> FunctionContext
 emptyFunctionContext retType ident args =
-    FunctionContext ident retType args 0 0 [] Map.empty Nothing Map.empty NoPosition []
+    FunctionContext ident retType args 0 0 [] Map.empty Nothing Map.empty []
 
 instance Show BlockContext where
   show block = let

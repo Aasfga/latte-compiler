@@ -17,7 +17,7 @@ data LatteError
   | TypeMissmatchIf Type
   | TypeMissmatchReturn Ident Type Type
   | MissingReturn Ident Type
-  | IntegerOutOfBound Int
+  | IntegerOutOfBound Integer
   -- Generator errors
 
 instance Show LatteError where   

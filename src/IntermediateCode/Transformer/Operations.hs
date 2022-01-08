@@ -191,10 +191,8 @@ returnVoid = do
 callFunction :: Ident -> [Q.QuadrupleLocation] -> C.FunctionTransformer Q.QuadrupleLocation
 callFunction ident locations = do
   let locationTypes = map getType locations 
-  result <- lift $ getFunctionType ident
-  unless (isJust result) $ throwLatteError $ SymbolNotFound ident
-  let (returnType, argumentTypes) = fromJust result
-  unless (argumentTypes == locationTypes) $ throwLatteError $ TypeMissmatchApplication ident argumentTypes locationTypes
+  (returnType, argumentTypes) <- lift $ getFunctionType ident
+  unless (argumentTypes == locationTypes) $ throwErrorFunction $ TypeMissmatchApplication ident argumentTypes locationTypes
   let operation = Q.CallFunction ident returnType locations
   resultRegister <- addQuadrupleOperation operation
   return $ Q.Register resultRegister

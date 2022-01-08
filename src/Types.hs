@@ -47,10 +47,13 @@ data Operation
 -- Clasess
 -- 
 class HasType a where
-  getType       :: a -> Type
+  getType :: a -> Type
 
 class HasIdent a where 
-  getIdent      :: a -> Ident
+  getIdent :: a -> Ident
+
+class HasPosition a where
+  getPosition :: a -> Position
 -- 
 -- Instances
 -- 

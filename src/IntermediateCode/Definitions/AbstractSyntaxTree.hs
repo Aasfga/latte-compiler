@@ -1,7 +1,8 @@
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE FlexibleInstances #-}
 module IntermediateCode.Definitions.AbstractSyntaxTree where
 
-import Types ( Argument, Position (..), Ident, Type, Operation, CompareOperation )
+import Types ( Argument, Position (..), Ident, Type, Operation, CompareOperation, HasPosition (getPosition) )
 
 
 -- Definitions
@@ -94,6 +95,45 @@ instance Functor Expression' where
         Not a expr -> Not (f a) (fmap f expr)
         Operation a expr1 op expr2 -> Operation (f a) (fmap f expr1) op (fmap f expr2)
         Compare a expr1 op expr2 -> Compare (f a) (fmap f expr1) op (fmap f expr2)
+
+instance HasPosition Program where
+  getPosition (Program p _) = p
+
+instance HasPosition GlobalSymbol where
+  getPosition (Function p _ _ _ _) = p
+
+instance HasPosition Block where
+  getPosition (Block p _) = p
+
+instance HasPosition Statement where
+  getPosition statement = case statement of
+    Empty p -> p
+    InnerBlock p _ -> p
+    Declaration p _ _ -> p
+    Assigment p _ _ -> p
+    Increment p _ -> p
+    Decrement p _ -> p
+    Return p _ -> p
+    VoidReturn p -> p
+    If p _ _ -> p
+    IfElse p _ _ _ -> p
+    While p _ _ -> p
+    Expression p _ -> p
+
+instance HasPosition Declaration where
+    getPosition declaration = case declaration of
+        NoInit p _ -> p
+        Init p _ _ -> p
+
+instance HasPosition Expression where
+    getPosition expression = case expression of
+        Variable p _ -> p
+        Value p _ -> p
+        Application p _ _ -> p
+        Neg p _ -> p
+        Not p _ -> p
+        Operation p _ _ _ -> p
+        Compare p _ _ _ -> p
 -- 
 -- Patterns
 -- 
