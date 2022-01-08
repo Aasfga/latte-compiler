@@ -6,11 +6,11 @@ import Types ( Argument, Position (..), Ident, Type, Operation, CompareOperation
 
 -- Definitions
 type Program = Program' Position
-data Program' a = Program a [Function' a]
+data Program' a = Program a [GlobalSymbol' a]
   deriving (Eq, Ord, Show, Read)
 
-type Function = Function' Position
-data Function' a = Function a Type Ident [Argument] (Block' a)
+type GlobalSymbol = GlobalSymbol' Position
+data GlobalSymbol' a = Function a Type Ident [Argument] (Block' a)
   deriving (Eq, Ord, Show, Read)
 
 type Block = Block' Position
@@ -59,7 +59,7 @@ data Value
 instance Functor Program' where
   fmap f (Program a functions) = Program (f a) (map (fmap f) functions)
 
-instance Functor Function' where
+instance Functor GlobalSymbol' where
   fmap f (Function a _type ident arguments block) = Function (f a) _type ident arguments (fmap f block)
 
 instance Functor Block' where

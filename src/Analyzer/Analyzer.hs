@@ -131,7 +131,7 @@ analyzeBlock (Block _ statements) arguments = do
   removeScope
   return $ or returnList
 
-analyzeFunction :: Function' a -> AnalyzerState ()
+analyzeFunction :: GlobalSymbol' a -> AnalyzerState ()
 analyzeFunction (AST.Function _ _type ident arguments block) = do 
   setFunctionType _type
   isReturn <- analyzeBlock block arguments
@@ -139,7 +139,7 @@ analyzeFunction (AST.Function _ _type ident arguments block) = do
     Void -> return ()
     _ -> unless isReturn (throwError $ MissingReturn ident _type)
 
-addFunctionsToScope :: Function' a -> AnalyzerState ()
+addFunctionsToScope :: GlobalSymbol' a -> AnalyzerState ()
 addFunctionsToScope (AST.Function _ _type ident arguments _) = do
   let argumentTypes = map getType arguments
   addSymbol ident (T.Function _type argumentTypes)

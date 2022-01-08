@@ -189,7 +189,7 @@ transformBlock (AST.Block p statements) isAlive = do
   leaveQuadrupleBlock
   return (newBlockNumber, makeFinalBlocks (newBlockNumber, isAlive) finalBlocks)
 
-transformFunction :: AST.Function -> C.FunctionTransformer ()
+transformFunction :: AST.GlobalSymbol -> C.FunctionTransformer ()
 transformFunction (AST.Function p returnType _ arguments block) = do
   let (AST.Block _ statements) = block
   newScope
@@ -201,15 +201,15 @@ transformFunction (AST.Function p returnType _ arguments block) = do
   removeScope
   assertFinalBlocksHaveReturn (trace "finalBlocks" finalBlocks)
 
-transformFunctionToQuadruples :: AST.Function -> C.GlobalTransformer ()
+transformFunctionToQuadruples :: AST.GlobalSymbol -> C.GlobalTransformer ()
 transformFunctionToQuadruples function = do
   result <- runFunctionTransformer transformFunction function
   return ()
 
 transformProgram :: AST.Program -> C.GlobalTransformer ()
-transformProgram program@(AST.Program p functions) = do
-  defineGlobalSymbols program
-  mapM_ transformFunctionToQuadruples functions
+transformProgram (AST.Program p globalSymbols) = do
+  defineGlobalSymbols globalSymbols
+  mapM_ transformFunctionToQuadruples globalSymbols
   assertMainExists
 
 transformToQuadruples :: AST.Program -> Either LatteError Q.QuadruplesCode
@@ -225,7 +225,7 @@ runGlobalTransformer transformer program = let
   in
     runStateT (transformer program) initialState
 
-runFunctionTransformer :: (AST.Function -> C.FunctionTransformer ()) -> AST.Function -> C.GlobalTransformer ((), C.FunctionContext)
+runFunctionTransformer :: (AST.GlobalSymbol -> C.FunctionTransformer ()) -> AST.GlobalSymbol -> C.GlobalTransformer ((), C.FunctionContext)
 runFunctionTransformer transformer function = let
     (AST.Function _ returnType ident arguments _) = function
     initialState = C.emptyFunctionContext returnType ident arguments 

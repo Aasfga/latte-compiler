@@ -12,7 +12,7 @@ convertProgram :: Src.Program' a -> Dest.Program' a
 convertProgram (Src.Program a functions) = 
   Dest.Program a (map convertFunction functions)
 
-convertFunction :: Src.Function' a -> Dest.Function' a
+convertFunction :: Src.Function' a -> Dest.GlobalSymbol' a
 convertFunction (Src.Function a _type ident arguments block) = 
   Dest.Function a (convertType _type) (convertIdent ident) (map convertArgument arguments) (convertBlock block)
 
