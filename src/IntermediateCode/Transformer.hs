@@ -127,15 +127,18 @@ transformStatement' (AST.Decrement _ ident) = do
   setLocation ident newLocation
   defaultStatementReturn
 transformStatement' (AST.Return _ expression) = do
+  currentBlockNumber <- getCurrentBlockNumber
   expressionLocation <- transformExpression expression
   returnExpression expressionLocation
   modifyCurrentBlock $ set C.hasReturn True
-  defaultStatementReturn
+  leaveQuadrupleBlock
+  return ([currentBlockNumber], False)
 transformStatement' (AST.VoidReturn _) = do
   currentBlockNumber <- getCurrentBlockNumber
   returnVoid
   modifyCurrentBlock $ set C.hasReturn True
-  defaultStatementReturn
+  leaveQuadrupleBlock
+  return ([currentBlockNumber], False)
 transformStatement' (AST.If _ expression statement) = do
   let dummyBlock = AST.DummyBlock statement
   currentAlive <- view C.isAlive <$> getCurrentBlock
@@ -231,47 +234,70 @@ transformFunctionBlock (AST.Block p statements) = do
   modify $ set C.finalBlocks finalBlocks
   gentlyLeaveQuadrupleBlock
   removeScope
-  assertFinalBlocksHaveReturn
 
-checkBlock :: C.BlockContext -> C.FunctionTransformer ()
-checkBlock block = do
-  let blockNumber = view C.blockNumber block
-  finalBlocks <- traceShowId . view C.finalBlocks <$> get
-  unless (blockNumber < 10000) $ throwErrorFunction $ InternalCompilerError "xyz"
-  unless (length finalBlocks <10000) $ throwErrorFunction $ InternalCompilerError "xyz"
-
-
-checkBlocks :: C.FunctionTransformer ()
-checkBlocks = do
-  blocks <- Map.elems . view C.blocks <$> get
-  mapM_ (checkBlock . traceShowId) blocks
-
-transformFunction :: AST.Block -> C.FunctionTransformer ()
+transformFunction :: AST.Block -> C.FunctionTransformer Q.FunctionDefinition
 transformFunction block = do
-  returnType <- view C.returnType <$> get
   transformFunctionBlock block
+  returnType <- view C.returnType <$> get
   when (returnType == Void) addDummyReturnVoidBlock
-  checkBlocks
+  removeEdgesFromReturningBlocks
   replacePreQuadruples 
+  assertFinalBlocksHaveReturn
+  parseFunctionContext
   
 transformGlobalSymbolToQuadruples :: AST.GlobalSymbol -> C.GlobalTransformer ()
 transformGlobalSymbolToQuadruples (AST.Function _ returnType functionName arguments block) = do
-  result <- runFunctionTransformer returnType functionName arguments block
-  return ()
+  (functionDefinition,_) <- runFunctionTransformer returnType functionName arguments block
+  modify $ over (C.quadruples . Q.functions) (Map.insert functionName functionDefinition)
 
-transformProgram :: AST.Program -> C.GlobalTransformer ()
+transformProgram :: AST.Program -> C.GlobalTransformer Q.Quadruples
 transformProgram (AST.Program _ globalSymbols) = do
   defineGlobalSymbols globalSymbols
   mapM_ transformGlobalSymbolToQuadruples globalSymbols
   assertMainExists
+  view C.quadruples <$> get
 
-transformToQuadruples :: AST.Program -> Either (LatteError, Position) C.GlobalContext
+transformToQuadruples :: AST.Program -> Either (LatteError, Position) Q.Quadruples
 transformToQuadruples program = case runGlobalTransformer program of
     Left error -> Left error
-    Right (_, code) -> Right code
+    Right (quadruples, _) -> Right quadruples
 -- 
 -- Finishers
 --
+parsePreQuadruple :: C.PreQuadruple -> C.FunctionTransformer Q.Quadruple
+parsePreQuadruple (C.Quadruple quadruple) = return quadruple
+parsePreQuadruple _ = throwErrorFunction $ InternalCompilerError "Not able to parse prequadruple"
+
+parseBlockContext :: C.BlockContext -> C.FunctionTransformer Q.Block
+parseBlockContext blockContext = do
+  let blockNumber = view C.blockNumber blockContext
+  let finalVariables = view C.finalVariables blockContext
+  let previousBlocks = view C.previousBlocks blockContext
+  let nextBlocks = view C.nextBlocks blockContext
+  let isAlive = view C.isAlive blockContext
+  let preCode = view C.code blockContext
+  code <- reverse <$> mapM parsePreQuadruple preCode
+  let hasReturn = view C.hasReturn blockContext
+  return $ Q.Block blockNumber finalVariables previousBlocks nextBlocks isAlive code hasReturn
+
+parseFunctionContext :: C.FunctionTransformer Q.FunctionDefinition
+parseFunctionContext = do
+  functionContext <- get
+  let functionIdent = view C.functionIdent functionContext
+  let returnType = view C.returnType functionContext
+  let arguments = view C.arguments functionContext
+  let registerCounter = view C.registerCounter functionContext
+  let preBlocks = view C.blocks functionContext
+  blocks <- mapM parseBlockContext preBlocks
+  return $ Q.FunctionDefinition functionIdent returnType arguments registerCounter blocks
+
+removeEdgesFromReturningBlocks :: C.FunctionTransformer ()
+removeEdgesFromReturningBlocks = do
+  blocks <- Map.elems . view C.blocks <$> get
+  let returningBlocks = filter (view C.hasReturn) blocks
+  let tuples = map (\b -> (view C.blockNumber b, view C.nextBlocks b)) returningBlocks
+  mapM_ (\(blockNumber, nextBlocks) -> mapM (removeQuadrupleEdge blockNumber) nextBlocks) tuples
+
 addDummyReturnVoidBlock :: C.FunctionTransformer ()
 addDummyReturnVoidBlock = do
   let statement = AST.VoidReturn NoPosition
@@ -314,14 +340,26 @@ replacePreQuadruples = do
 -- 
 -- Transformers
 -- 
-runGlobalTransformer :: AST.Program -> Either (LatteError, Position) ((), C.GlobalContext)
+runGlobalTransformer :: AST.Program -> Either (LatteError, Position) (Q.Quadruples, C.GlobalContext)
 runGlobalTransformer program = let
     initialState = C.emptyGlobalContext 
   in
     runStateT (transformProgram program) initialState
 
-runFunctionTransformer :: Type -> Ident -> [Argument] -> AST.Block -> C.GlobalTransformer ((), C.FunctionContext)
+runFunctionTransformer :: Type -> Ident -> [Argument] -> AST.Block -> C.GlobalTransformer (Q.FunctionDefinition, C.FunctionContext)
 runFunctionTransformer returnType functionIdent arguments block = let
     initialState = C.emptyFunctionContext returnType functionIdent arguments 
   in
     runStateT (transformFunction block) initialState
+
+checkBlock :: C.BlockContext -> C.FunctionTransformer ()
+checkBlock block = do
+  let blockNumber = view C.blockNumber block
+  finalBlocks <- traceShowId . view C.finalBlocks <$> get
+  unless (blockNumber < 10000) $ throwErrorFunction $ InternalCompilerError "xyz"
+  unless (length finalBlocks <10000) $ throwErrorFunction $ InternalCompilerError "xyz"
+
+checkBlocks :: C.FunctionTransformer ()
+checkBlocks = do
+  blocks <- Map.elems . view C.blocks <$> get
+  mapM_ (checkBlock . traceShowId) blocks

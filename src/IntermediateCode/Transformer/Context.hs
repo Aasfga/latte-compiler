@@ -35,18 +35,18 @@ data FunctionContext
     _functionIdent :: Ident, 
     _returnType :: Type,
     _arguments  :: [Argument],
-    _blockCounter :: Int,
-    _registerCounter :: Int,
+    _blockCounter :: Q.BlockNumber,
+    _registerCounter :: Index,
     _scopes :: [[Ident]],
     _variables :: Map.Map Ident [Q.QuadrupleLocation],
     _currentBlockNumber :: Maybe Q.BlockNumber,
-    _blocks :: Map.Map Int BlockContext,
+    _blocks :: Map.Map Q.BlockNumber BlockContext,
     _finalBlocks :: [Q.BlockNumber]
   }
 
 data GlobalContext 
   = GlobalContext {
-    _quadruplesCode :: Q.QuadruplesCode,
+    _quadruples :: Q.Quadruples,
     _position :: Position
   }
 

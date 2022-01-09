@@ -18,6 +18,11 @@ addQuadrupleEdge source destination = do
   modifyBlock source $ over C.nextBlocks (destination:)
   modifyBlock destination $ over C.previousBlocks (source:)
 
+removeQuadrupleEdge :: Q.BlockNumber -> Q.BlockNumber -> C.FunctionTransformer ()
+removeQuadrupleEdge source destination = do
+  modifyBlock source $ over C.nextBlocks (filter (destination /=))
+  modifyBlock destination $ over C.previousBlocks (filter (source /=))
+  
 newQuadrupleBlock :: Bool -> C.FunctionTransformer Q.BlockNumber
 newQuadrupleBlock isAlive = do
   assertNotInQuadrupleBlock

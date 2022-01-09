@@ -23,7 +23,7 @@ throwErrorGlobal latteError = do
 
 getFunctionType :: Ident -> C.GlobalTransformer (Type, [Type])
 getFunctionType ident = do
-  maybeFunction <- Map.lookup ident . view (C.quadruplesCode . Q.functions) <$> get
+  maybeFunction <- Map.lookup ident . view (C.quadruples . Q.functions) <$> get
   case maybeFunction of 
     Nothing -> throwErrorGlobal $ SymbolNotFound ident
     Just function -> do
@@ -39,8 +39,8 @@ defineGlobalSymbols globalSymbols = do
 newGlobalSymbol :: AST.GlobalSymbol -> C.GlobalTransformer ()
 newGlobalSymbol (AST.Function _ retType ident args _) = do
   assertCanDefineFunction ident
-  let newFunction = Q.emptyFunction retType args
-  modify $ over (C.quadruplesCode . Q.functions) (Map.insert ident newFunction)
+  let newFunction = Q.emptyFunctionDefinition ident retType args
+  modify $ over (C.quadruples . Q.functions) (Map.insert ident newFunction)
 -- 
 -- Function context functions
 -- 
@@ -161,7 +161,7 @@ assertMainExists = do
 
 assertCanDefineFunction :: Ident -> C.GlobalTransformer ()
 assertCanDefineFunction ident = do
-  canDefine <- not . Map.member ident . view (C.quadruplesCode .Q.functions) <$> get
+  canDefine <- not . Map.member ident . view (C.quadruples .Q.functions) <$> get
   unless canDefine (throwError $ (SymbolInScope ident, NoPosition))
 
 assertNotInQuadrupleBlock :: C.FunctionTransformer ()
