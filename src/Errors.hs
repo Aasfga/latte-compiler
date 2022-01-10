@@ -21,6 +21,8 @@ data LatteError
   -- Generator errors
 
 instance Show LatteError where   
+  show (ParserError msg) = 
+    "Parser error." ++ show msg
   show (SymbolNotFound ident) = 
     "Symbol " ++ ident ++ " not found"
   show (SymbolInScope ident) = 

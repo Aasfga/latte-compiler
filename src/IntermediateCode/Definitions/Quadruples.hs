@@ -47,7 +47,6 @@ data Quadruple
   = QuadrupleOperation TemporaryRegister QuadrupleOperation
   | Jump BlockNumber
   | ConditionalJump QuadrupleLocation BlockNumber BlockNumber
-  | Label Ident BlockNumber
   deriving (Eq, Ord)
 
 data Block 
@@ -89,6 +88,8 @@ instance HasType QuadrupleLocation where
 
 instance HasType QuadrupleOperation where
   getType (ArgumentInit _ _type) = _type
+  getType (Phi []) = Void
+  getType (Phi ((location, _):_)) = getType location
   getType (IntegerAdd _ _) = Int
   getType (IntegerSub _ _) = Int
   getType (IntegerMul _ _) = Int
@@ -137,7 +138,7 @@ instance Show Quadruple where
   show (QuadrupleOperation register operation) = "\t\t" ++ show register ++ " = " ++ show operation
   show (Jump blockNumber) = "\t\tjmp " ++ show blockNumber
   show (ConditionalJump location first second) = "\t\tjz " ++ show location ++ " " ++ show second ++ " else " ++ show first
-  show (Label ident bn) = ident ++ "_" ++ show bn ++ ":"
+  -- show (Label ident bn) = ident ++ "_" ++ show bn ++ ":"
 -- 
 -- Functions
 -- 
@@ -150,10 +151,10 @@ emptyFunctionDefinition ident retType args = FunctionDefinition ident retType ar
 getCodeBlock :: Ident -> Block -> [String]
 getCodeBlock fi block = let
     bn = view blockNumber block
-    label = Label fi bn
+    label = fi ++ "_" ++ show bn ++ ":"
     c = map show $ view code block
   in
-    "":show label:c
+    "":label:c
   
 getCodeFunction :: FunctionDefinition -> [String]
 getCodeFunction fd = let

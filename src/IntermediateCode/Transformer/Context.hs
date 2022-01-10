@@ -37,6 +37,7 @@ data FunctionContext
     _arguments  :: [Argument],
     _blockCounter :: Q.BlockNumber,
     _registerCounter :: Index,
+    _dummyCounter :: Index,
     _scopes :: [[Ident]],
     _variables :: Map.Map Ident [Q.QuadrupleLocation],
     _currentBlockNumber :: Maybe Q.BlockNumber,
@@ -65,7 +66,7 @@ emptyBlockContext block isAlive = BlockContext block Map.empty [] [] isAlive [] 
 
 emptyFunctionContext :: Type -> Ident -> [Argument] -> FunctionContext
 emptyFunctionContext retType ident args =
-    FunctionContext ident retType args 0 0 [] Map.empty Nothing Map.empty []
+    FunctionContext ident retType args 0 1 0 [] Map.empty Nothing Map.empty []
 
 instance Show BlockContext where
   show block = let

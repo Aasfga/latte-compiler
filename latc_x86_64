@@ -1,5 +1,11 @@
 #!/bin/bash
 
+SCRIPT_PATH=$(realpath $0)
+DIR_PATH=$(dirname $SCRIPT_PATH)
+LIB_PATH=$DIR_PATH/lib
 FILE_PATH=$(realpath $1)
+S_PATH=${FILE_PATH%.lat}.s
+O_PATH=${FILE_PATH%.lat}.o
+BIN_PATH=${FILE_PATH%.lat}
 
-cat $FILE_PATH | ./latte
+cat $FILE_PATH | ./latte  > $S_PATH && nasm -f elf64 $S_PATH -o $O_PATH && gcc $O_PATH $LIB_PATH/runtime.o -o $BIN_PATH

@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module IntermediateCode.Definitions.AbstractSyntaxTree where
 
-import Types ( Argument, Position (..), Ident, Type, Operation, CompareOperation, HasPosition (getPosition) )
+import Types ( Argument, Position (..), Ident, Type, Operation, CompareOperation, HasPosition (getPosition), HasIdent (getIdent))
 
 
 -- Definitions
@@ -134,8 +134,26 @@ instance HasPosition Expression where
         Not p _ -> p
         Operation p _ _ _ -> p
         Compare p _ _ _ -> p
+
+instance HasIdent GlobalSymbol where 
+  getIdent (Function _ _ ident _ _) = ident
 -- 
 -- Patterns
 -- 
 pattern DummyBlock :: Statement -> Block
 pattern DummyBlock statement = Block NoPosition [statement]
+
+pattern DummyAssigment :: Ident -> Expression -> Statement
+pattern DummyAssigment ident expression = Assigment NoPosition ident expression
+
+pattern DummyBool :: Bool -> Expression
+pattern DummyBool x = Value NoPosition (BoolValue x)
+
+pattern DummyIfElse :: Expression -> Statement -> Statement -> Statement
+pattern DummyIfElse expression first second = IfElse NoPosition expression first second
+
+pattern DummyEmpty :: Statement
+pattern DummyEmpty = Empty NoPosition
+
+pattern DummyNot :: Expression -> Expression
+pattern DummyNot expression = Not NoPosition expression

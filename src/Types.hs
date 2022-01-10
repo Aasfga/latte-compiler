@@ -100,3 +100,11 @@ getCompareFunction GTH  = (>)
 getCompareFunction GE = (>=)
 getCompareFunction EQU = (==)
 getCompareFunction NE = (/=)
+
+negateCompareOperation :: CompareOperation -> CompareOperation
+negateCompareOperation LTH = GE
+negateCompareOperation LE = GTH
+negateCompareOperation GTH = LE
+negateCompareOperation GE = LTH
+negateCompareOperation EQU = NE
+negateCompareOperation NE = EQU

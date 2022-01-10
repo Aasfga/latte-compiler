@@ -18,7 +18,6 @@ import Lens.Micro.Platform
 import Debug.Trace
 import IntermediateCode.Transformer.Utilities
 import IntermediateCode.Transformer.Operations
-import GHC.IO
 
 
 -- 
@@ -53,6 +52,38 @@ transformExpression' (AST.Neg _ expression) = do
 transformExpression' (AST.Not _ expression) = do
   location <- transformExpression expression
   boolNot location 
+transformExpression' (AST.Operation _ firstExpression And secondExpression) = do
+  dummyIdent <- getNewDummyIdent
+  isAlive <- view C.isAlive <$> getCurrentBlock
+  currentBlockNumber <- getCurrentBlockNumber
+  newScope
+  newVariable Bool dummyIdent (Q.ConstBool False)
+  let ifAssigment = AST.DummyAssigment dummyIdent secondExpression
+  let elseAssigment = AST.DummyAssigment dummyIdent $ AST.DummyBool False
+  let statement = AST.DummyIfElse firstExpression ifAssigment elseAssigment
+  leaveQuadrupleBlock
+  (newBlockNumber, result) <- transformBlock (AST.DummyBlock statement) isAlive
+  transformStatement result AST.DummyEmpty
+  location <- getLocation dummyIdent
+  removeScope
+  addQuadrupleEdge currentBlockNumber newBlockNumber
+  return location
+transformExpression' (AST.Operation _ firstExpression Or secondExpression) = do
+  dummyIdent <- getNewDummyIdent
+  isAlive <- view C.isAlive <$> getCurrentBlock
+  currentBlockNumber <- getCurrentBlockNumber
+  newScope
+  newVariable Bool dummyIdent (Q.ConstBool False)
+  let ifAssigment = AST.DummyAssigment dummyIdent $ AST.DummyBool True
+  let elseAssigment = AST.DummyAssigment dummyIdent secondExpression
+  let statement = AST.DummyIfElse firstExpression ifAssigment elseAssigment
+  leaveQuadrupleBlock
+  (newBlockNumber, result) <- transformBlock (AST.DummyBlock statement) isAlive
+  transformStatement result AST.DummyEmpty
+  location <- getLocation dummyIdent
+  removeScope
+  addQuadrupleEdge currentBlockNumber newBlockNumber
+  return location
 transformExpression' (AST.Operation _ firstExpression op secondExpression) = do
   firstLocation <- transformExpression firstExpression
   secondLocation <- transformExpression secondExpression
@@ -72,7 +103,8 @@ transformExpression' (AST.Compare _ firstExpression op secondExpression) = do
 
 transformExpression :: AST.Expression -> C.FunctionTransformer Q.QuadrupleLocation
 transformExpression expression = do
-  lift $ savePosition $ getPosition expression
+  let position = getPosition expression
+  when (position /= NoPosition) $ lift $ savePosition position
   transformExpression' expression
 
 transformDeclaration :: Type -> AST.Declaration -> C.FunctionTransformer ()
@@ -127,8 +159,8 @@ transformStatement' (AST.Decrement _ ident) = do
   setLocation ident newLocation
   defaultStatementReturn
 transformStatement' (AST.Return _ expression) = do
-  currentBlockNumber <- getCurrentBlockNumber
   expressionLocation <- transformExpression expression
+  currentBlockNumber <- getCurrentBlockNumber
   returnExpression expressionLocation
   modifyCurrentBlock $ set C.hasReturn True
   leaveQuadrupleBlock
@@ -142,8 +174,8 @@ transformStatement' (AST.VoidReturn _) = do
 transformStatement' (AST.If _ expression statement) = do
   let dummyBlock = AST.DummyBlock statement
   currentAlive <- view C.isAlive <$> getCurrentBlock
-  currentBlockNumber <- getCurrentBlockNumber
   expressionLocation <- transformExpression expression
+  currentBlockNumber <- getCurrentBlockNumber
   assertLocationIsBool expressionLocation
   (isIfAlive, cond) <- case expressionLocation of 
     (Q.ConstBool x) -> return $ (currentAlive && x, x)
@@ -159,8 +191,8 @@ transformStatement' (AST.IfElse _ expression ifStatement elseStatement) = do
   let ifBlock = AST.DummyBlock ifStatement
   let elseBlock = AST.DummyBlock elseStatement
   currentAlive <- view C.isAlive <$> getCurrentBlock
-  currentBlockNumber <- getCurrentBlockNumber
   expressionLocation <- transformExpression expression
+  currentBlockNumber <- getCurrentBlockNumber
   assertLocationIsBool expressionLocation
   addConditionalJumpPlaceholder expressionLocation
   leaveQuadrupleBlock
@@ -174,12 +206,13 @@ transformStatement' (AST.IfElse _ expression ifStatement elseStatement) = do
   return (ifFinals ++ elseFinals, ifAlive || elseAlive)
 transformStatement' (AST.While _ expression statement) = do
   let dummyBlock = AST.DummyBlock statement
-  currentBlockNumber <- getCurrentBlockNumber
   currentAlive <- view C.isAlive <$> getCurrentBlock
+  currentBlockNumber <- getCurrentBlockNumber
   addJumpPlaceholder
   leaveQuadrupleBlock
-  conditionBlockNumber <- newQuadrupleBlock currentAlive
+  _ <- newQuadrupleBlock currentAlive
   expressionLocation <- transformExpression expression
+  conditionBlockNumber <- getCurrentBlockNumber
   assertLocationIsBool expressionLocation
   isWhileAlive <- case expressionLocation of
     (Q.ConstBool x) -> return $ currentAlive && x
@@ -199,7 +232,7 @@ transformStatement' (AST.Expression _ expression) = do
 transformStatement :: StatementReturn -> AST.Statement -> C.FunctionTransformer StatementReturn
 transformStatement ([], _) statement = do
   let position = getPosition statement
-  lift $ savePosition position
+  when (position /= NoPosition) $ lift $ savePosition position
   transformStatement' statement
 transformStatement (finalBlocks, anyAlive) statement = do
   let position = getPosition statement
@@ -241,6 +274,7 @@ transformFunction block = do
   returnType <- view C.returnType <$> get
   when (returnType == Void) addDummyReturnVoidBlock
   removeEdgesFromReturningBlocks
+  addDummyJumps
   replacePreQuadruples 
   assertFinalBlocksHaveReturn
   parseFunctionContext
@@ -260,10 +294,23 @@ transformProgram (AST.Program _ globalSymbols) = do
 transformToQuadruples :: AST.Program -> Either (LatteError, Position) Q.Quadruples
 transformToQuadruples program = case runGlobalTransformer program of
     Left error -> Left error
-    Right (quadruples, _) -> Right quadruples
+    Right (quadruples, _) -> let
+        functions = view Q.functions quadruples
+        noLibraryFunctions = foldl (flip Map.delete) functions $ map getIdent libraryFunctions
+        newQuadruples = set Q.functions noLibraryFunctions quadruples
+      in
+        Right newQuadruples
 -- 
 -- Finishers
 --
+addDummyJumps :: C.FunctionTransformer ()
+addDummyJumps = do
+  blockNumbers <- Map.keys . view C.blocks <$> get
+  mapM_ (\b -> do
+      nextBlocks <- view C.nextBlocks <$> getBlock b
+      when (length nextBlocks == 1) $ modifyBlock b $ over C.code (C.JumpPlaceholder:)
+    ) blockNumbers
+
 parsePreQuadruple :: C.PreQuadruple -> C.FunctionTransformer Q.Quadruple
 parsePreQuadruple (C.Quadruple quadruple) = return quadruple
 parsePreQuadruple _ = throwErrorFunction $ InternalCompilerError "Not able to parse prequadruple"
@@ -338,7 +385,7 @@ replacePreQuadruples = do
     modifyBlock blockNumber $ set C.code newCode
     ) blocks
 -- 
--- Transformers
+-- Runners
 -- 
 runGlobalTransformer :: AST.Program -> Either (LatteError, Position) (Q.Quadruples, C.GlobalContext)
 runGlobalTransformer program = let

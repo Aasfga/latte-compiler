@@ -50,6 +50,20 @@ savePosition position = modify $ set C.position position
 throwErrorFunction :: LatteError -> C.FunctionTransformer a
 throwErrorFunction latteError = lift $ throwErrorGlobal latteError
 
+getNewDummyNumber :: C.FunctionTransformer Int
+getNewDummyNumber = do
+  newDummyNumber <- view C.dummyCounter <$> get
+  modify $ over C.dummyCounter (+1)
+  return newDummyNumber
+
+getNewDummyIdent :: C.FunctionTransformer Ident
+getNewDummyIdent = do
+  dummyIdent <- (++) "__tmp_" . show <$> getNewDummyNumber
+  isMember <- Map.member dummyIdent . view C.variables <$> get
+  case isMember of
+    False -> return dummyIdent
+    True -> getNewDummyIdent
+
 getNewBlockNumber :: C.FunctionTransformer Q.BlockNumber
 getNewBlockNumber = do
   newBlockNumber <- gets $ view C.blockCounter
