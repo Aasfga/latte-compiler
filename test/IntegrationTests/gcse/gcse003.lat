@@ -1,0 +1,24 @@
+int main()
+{
+  int x = giveInt(5);
+  if(giveBool(false))
+  {
+    printInt(0 * debugGcsePrintInt(x * 2));
+  }
+  else
+  {
+    printInt(1 * debugGcsePrintInt(x * 2));
+  }
+  printInt(2 * debugGcsePrintInt(x * 2));
+  return 0;
+}
+
+boolean giveBool(boolean x)
+{
+  return x;
+}
+
+int giveInt(int x)
+{
+  return x; 
+}

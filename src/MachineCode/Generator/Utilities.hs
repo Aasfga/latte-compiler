@@ -96,19 +96,21 @@ getNewLabel = do
   functionIdent <- view C.functionIdent <$> get
   newLabelNumber <- view C.labelCounter <$> get
   modify $ over C.labelCounter (1+)
-  return $ functionIdent ++ "_" ++ show newLabelNumber
+  return $ functionIdent ++ "_L_" ++ show newLabelNumber
 
 getBlockLabel :: Q.BlockNumber -> C.FunctionGenerator Label
 getBlockLabel blockNumber = do
-  maybeLabel <- Map.lookup blockNumber . view C.labels <$> get
-  case maybeLabel of  
-    Just label -> return $ label
-    Nothing -> do
-      label <- getNewLabel
-      modify $ over C.labels (Map.insert blockNumber label)
-      return label
+  functionIdent <- view C.functionIdent <$> get
+  return $ functionIdent ++ "_" ++ show blockNumber
 
 emitBlockLabel :: Q.BlockNumber -> C.FunctionGenerator ()
 emitBlockLabel blockNumber = do
   label <- getBlockLabel blockNumber
   lift $ emitLabel label
+
+getBlock :: Q.BlockNumber -> C.FunctionGenerator Q.Block
+getBlock blockNumber = do
+  maybeBlock <- Map.lookup blockNumber . view C.blocks <$> get
+  case maybeBlock of 
+    Nothing -> throwError $ InternalCompilerError "Not able to find block with given block number"
+    Just block -> return block

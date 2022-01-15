@@ -14,20 +14,19 @@ import Data.List
 
 data PreQuadruple
   = Quadruple Q.Quadruple
-  | PhiPlaceholder Ident Q.TemporaryRegister
-  | JumpPlaceholder
-  | ConditionalJumpPlaceholder Q.QuadrupleLocation
   deriving (Show)
 
 data BlockContext
   = BlockContext {
     _blockNumber :: Int,
+    _phiVariables :: Map.Map Ident Q.TemporaryRegister,
     _finalVariables :: Map.Map Ident Q.QuadrupleLocation,
     _previousBlocks :: [Q.BlockNumber],
     _nextBlocks :: [Q.BlockNumber],
     _isAlive :: Bool,
     _code :: [PreQuadruple],
-    _hasReturn :: Bool
+    _hasReturn :: Bool,
+    _finalOperation :: Q.FinalOperation
   }
 
 data FunctionContext 
@@ -40,6 +39,7 @@ data FunctionContext
     _dummyCounter :: Index,
     _scopes :: [[Ident]],
     _variables :: Map.Map Ident [Q.QuadrupleLocation],
+    _locationTypes :: Map.Map Q.TemporaryRegister Type,
     _currentBlockNumber :: Maybe Q.BlockNumber,
     _blocks :: Map.Map Q.BlockNumber BlockContext,
     _finalBlocks :: [Q.BlockNumber]
@@ -61,12 +61,12 @@ type FunctionTransformer = StateT FunctionContext GlobalTransformer
 emptyGlobalContext :: GlobalContext 
 emptyGlobalContext = GlobalContext Q.emptyQuadruplesCode NoPosition
 
-emptyBlockContext :: Q.BlockNumber -> Bool -> BlockContext
-emptyBlockContext block isAlive = BlockContext block Map.empty [] [] isAlive [] False
+emptyBlockContext :: Q.BlockNumber -> Bool -> (Map.Map Ident Q.TemporaryRegister) -> BlockContext
+emptyBlockContext __blockNumber __isAlive __phiVariables = BlockContext __blockNumber __phiVariables Map.empty [] [] __isAlive [] False Q.None
 
 emptyFunctionContext :: Type -> Ident -> [Argument] -> FunctionContext
 emptyFunctionContext retType ident args =
-    FunctionContext ident retType args 0 1 0 [] Map.empty Nothing Map.empty []
+    FunctionContext ident retType args 0 1 0 [] Map.empty Map.empty Nothing Map.empty []
 
 instance Show BlockContext where
   show block = let
@@ -78,7 +78,6 @@ instance Show BlockContext where
       fv = view finalVariables block
       tuples = Map.toList fv
       c = concat $ intersperse "\n" $ map show $ reverse $ view code block
-
     in
       "Block " ++ show number ++ ": \n" ++
       " alive=" ++ show alive ++ "\n" ++ 

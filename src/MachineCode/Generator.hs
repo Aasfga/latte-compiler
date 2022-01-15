@@ -30,21 +30,13 @@ generateCompare tmpRegister op = do
   lift $ emitLabel endLabel
   saveValue tmpRegister RAX
 
-generatePhi :: Q.TemporaryRegister -> (Q.QuadrupleLocation, Q.BlockNumber) -> C.FunctionGenerator ()
-generatePhi tmpRegister (location, blockNumber) = do
-  lift $ emitCMP R8 (Number blockNumber)
-  label <- getNewLabel
-  lift $ emitJXX NE label
-  loadValue location RAX
-  saveValue tmpRegister RAX
-  lift $ emitLabel label
-
 generateQuadrupleOperation :: Q.TemporaryRegister -> Q.QuadrupleOperation -> C.FunctionGenerator ()
-generateQuadrupleOperation tmpRegister (Q.ArgumentInit index _) = do
+generateQuadrupleOperation tmpRegister (Q.ArgumentInit index) = do
   loadArgument index
   saveValue tmpRegister RAX
-generateQuadrupleOperation tmpRegister (Q.Phi choices) = do
-  mapM_ (generatePhi tmpRegister) choices
+generateQuadrupleOperation tmpRegister (Q.Assigment location) = do
+  loadValue location RAX
+  saveValue tmpRegister RAX
 generateQuadrupleOperation tmpRegister (Q.IntegerAdd first second) = do 
   loadValue first RAX
   loadValue second RCX
@@ -88,7 +80,7 @@ generateQuadrupleOperation tmpRegister (Q.BoolNot location) = do
   lift $ emitSUB RAX RCX
   saveValue tmpRegister RAX
 generateQuadrupleOperation tmpRegister (Q.StringConcat first second) = do
-  let functionCall = (Q.CallFunction "__stringConcat" String [first, second])
+  let functionCall = (Q.CallFunction "__stringConcat" [first, second])
   generateQuadrupleOperation tmpRegister functionCall
 generateQuadrupleOperation tmpRegister (Q.IntegerCompare first op second) = do
   loadValue first RAX
@@ -101,7 +93,7 @@ generateQuadrupleOperation tmpRegister (Q.BoolCompare first op second) = do
   lift $ emitCMP RAX RCX
   generateCompare tmpRegister op
 generateQuadrupleOperation tmpRegister (Q.StringCompare first op second) = do
-  let functionCall = (Q.CallFunction "__stringCompare" Int [first, second])
+  let functionCall = (Q.CallFunction "__stringCompare" [first, second])
   generateQuadrupleOperation tmpRegister functionCall
   lift $ emitCMP RAX (Number 0)
   generateCompare tmpRegister op
@@ -112,60 +104,76 @@ generateQuadrupleOperation tmpRegister (Q.ReturnValue location) = do
 generateQuadrupleOperation tmpRegister Q.ReturnVoid = do
   functionEndLabel <- getFunctionEndLabel
   lift $ emitJMP functionEndLabel
-generateQuadrupleOperation tmpRegister (Q.CallFunction ident _ locations) = do
+generateQuadrupleOperation tmpRegister (Q.CallFunction ident locations) = do
   let registerArguments = take 6 locations
   let stackArguments = drop 6 locations
+  stackCounter <- view C.stackCounter <$> lift get
+  let stackSize = stackCounter + length stackArguments
   mapM_ (uncurry saveArgument) $ zip [0..] registerArguments
-  elseLabel <- getNewLabel
-  endLabel <- getNewLabel
-  lift $ emitTEST RSP (Number 8)
-  lift $ emitJXX EQU elseLabel
-  lift $ emitSUB RSP (Number 8)
+  when (mod stackSize 16 == 0) $ lift $ emitSUB RSP (Number 8)
   mapM_ (uncurry saveArgument) $ zip [6..] $ reverse stackArguments
   lift $ emitCALL ident
-  lift $ emitADD RSP (Number 8)
-  lift $ emitJMP endLabel
-  lift $ emitLabel elseLabel
-  mapM_ (uncurry saveArgument) $ zip [6..] $ reverse stackArguments
-  lift $ emitCALL ident
-  lift $ emitLabel endLabel
   when (not $ null stackArguments) $ lift $ emitADD RSP (Number $ (length stackArguments * 8))
+  when (mod stackSize 16 == 0) $ lift $ emitADD RSP (Number 8)
   saveValue tmpRegister RAX
+
 
 generateQuadruple :: Q.BlockNumber -> Q.Quadruple -> C.FunctionGenerator ()
 generateQuadruple _ (Q.QuadrupleOperation register operation) = generateQuadrupleOperation register operation
-generateQuadruple currentBlockNumber (Q.Jump blockNumber) = do
-  blockLabel <- getBlockLabel blockNumber
-  saveBlockNumber currentBlockNumber
-  lift $ emitJMP blockLabel
-generateQuadruple currentBlockNumber (Q.ConditionalJump register first second) = do
-  firstLabel <- getBlockLabel first
-  secondLabel <- getBlockLabel second
-  loadValue register RAX
-  saveBlockNumber currentBlockNumber
+
+generatePhi :: Q.Block -> Q.Block -> C.FunctionGenerator ()
+generatePhi currentBlock nextBlock = do
+  let finalVariables = view Q.finalVariables currentBlock
+  let phiVariables = view Q.phiVariables nextBlock
+  mapM_ (\(i, r) -> do
+      let finalLocation = fromJust $ Map.lookup i finalVariables 
+      loadValue finalLocation RAX
+      saveValue r RAX
+    ) $ Map.toList phiVariables
+
+generateBlockEnding :: Q.Block -> Q.FinalOperation -> C.FunctionGenerator ()
+generateBlockEnding block Q.None = return ()
+-- TODO
+generateBlockEnding block Q.Return = return ()
+generateBlockEnding block Q.Jump = do
+  nextBlocks <- mapM getBlock $ view Q.nextBlocks block
+  let (nextBlock:_) = nextBlocks
+  label <- getBlockLabel $ view Q.blockNumber nextBlock
+  generatePhi block nextBlock 
+  lift $ emitJMP label
+generateBlockEnding block (Q.ConditionalJump location) = do
+  nextBlocks <- mapM getBlock $ view Q.nextBlocks block
+  let (elseBlock:ifBlock:_) = nextBlocks
+  ifLabel <- getBlockLabel $ view Q.blockNumber ifBlock 
+  elseLabel <- getBlockLabel $ view Q.blockNumber elseBlock
+  generatePhi block ifBlock 
+  generatePhi block elseBlock
+  loadValue location RAX
   lift $ emitCMP RAX (Number 0)
-  lift $ emitJXX EQU secondLabel
-  lift $ emitJMP firstLabel 
+  lift $ emitJXX EQU elseLabel
+  lift $ emitJMP ifLabel
 
 generateBlock :: Q.Block -> C.FunctionGenerator ()
 generateBlock block = do
   let blockNumber = view Q.blockNumber block
   let quadruples = view Q.code block
+  let finalOperation = view Q.finalOperation block
   emitBlockLabel blockNumber
   mapM_ (generateQuadruple blockNumber) quadruples
-  saveBlockNumber blockNumber
+  generateBlockEnding block finalOperation 
 
 generateFunction :: Q.FunctionDefinition -> C.FunctionGenerator ()
 generateFunction functionDefinition = do
   frameSize <- view C.frameSize <$> get
+  let frameAddjustment = mod frameSize 2
   emitFunctionLabel
   lift $ emitPUSH RBP
   lift $ emitMOV RBP RSP
-  lift $ emitSUB RSP (Number $ frameSize * 8) 
+  lift $ emitSUB RSP (Number $ (frameSize + frameAddjustment) * 8) 
   let blocks = Map.elems $ view Q.blocks functionDefinition
   mapM_ generateBlock blocks
   emitFunctionEndLabel
-  lift $ emitADD RSP (Number $ frameSize * 8)
+  lift $ emitADD RSP (Number $ (frameSize + frameAddjustment) * 8)
   lift $ emitPOP RBP
   lift $ emitRET
 
@@ -180,6 +188,7 @@ generateHeader = do
   emitExtern "readString"
   emitExtern "__stringConcat"
   emitExtern "__stringCompare"
+  emitExtern "debugGcsePrintInt"
   emitSection Text
 
 generateStrings :: C.GlobalGenerator ()
@@ -203,16 +212,18 @@ generateQuadruples quadruples = do
   emitEmptyLine
   generateBottom
 
-generateMachineCode :: Q.Quadruples -> Either LatteError [String]
-generateMachineCode = runGlobalGenerator
+generateMachineCode :: Q.Quadruples -> Either CompilerError String
+generateMachineCode quadruples = case runGlobalGenerator quadruples of
+  Right code -> Right code
+  Left error -> Left $ CompilerError error NoPosition
 -- 
 -- Runners
 -- 
-runGlobalGenerator :: Q.Quadruples -> Either LatteError [String]
+runGlobalGenerator :: Q.Quadruples -> Either LatteError String
 runGlobalGenerator quadruples = let
     initialState = C.emptyGlobalContext
   in
-    fmap (reverse . view C.code . snd) $ runStateT (generateQuadruples quadruples) initialState
+    fmap (unlines . reverse . view C.code . snd) $ runStateT (generateQuadruples quadruples) initialState
 
 runFunctionGenerator :: Q.FunctionDefinition -> C.GlobalGenerator ()
 runFunctionGenerator functionDefinition = let

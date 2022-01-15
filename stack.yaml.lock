@@ -53,6 +53,13 @@ packages:
       sha256: c79246ba7d61392c2f214376fed3c2a05e4b2649b93ec2c849a86493f278ace0
   original:
     hackage: transformers-0.5.6.2
+- completed:
+    hackage: optparse-applicative-0.16.1.0@sha256:16ebd7054b2265c1aad16c1d19dc503695fbfc67b35203d9952fd577d08c0110,4982
+    pantry-tree:
+      size: 2979
+      sha256: 0d4a0d442f7f25d35e88f5f30099763c512e3c8fefe2ebccebd82cead4000021
+  original:
+    hackage: optparse-applicative-0.16.1.0
 snapshots:
 - completed:
     size: 532386

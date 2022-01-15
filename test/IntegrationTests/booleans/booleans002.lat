@@ -1,0 +1,29 @@
+int main()
+{
+  if(giveFalse() && ouch())
+  {
+    printString("Ouch, again!);
+  }
+  else
+  {
+    printString("Hello, how are you?");
+  }
+
+  return 0;
+}
+
+boolean giveFalse()
+{
+  return false;
+}
+
+boolean ouch()
+{
+  printString("Ouch!");
+  return true;
+}
+
+boolean giveTrue()
+{
+  return true;
+}

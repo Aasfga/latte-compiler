@@ -54,6 +54,9 @@ class HasIdent a where
 
 class HasPosition a where
   getPosition :: a -> Position
+
+class DebugShow a where 
+  debugShow :: a -> String
 -- 
 -- Instances
 -- 

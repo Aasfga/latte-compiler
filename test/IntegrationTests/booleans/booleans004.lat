@@ -1,0 +1,26 @@
+int main()
+{
+  while((giveTrue() && (giveFalse() || giveTrue())) && giveFalse() && ouch())
+  {
+    printString("Ouch again!");
+  }
+  printString("Hello, how are you?");
+  
+  return 0;
+}
+
+boolean giveFalse()
+{
+  return false;
+}
+
+boolean ouch()
+{
+  printString("Ouch!");
+  return true;
+}
+
+boolean giveTrue()
+{
+  return true;
+}

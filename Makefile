@@ -1,7 +1,7 @@
 all:
 	happy src/Parser/BnfcParser/ParLatte.y
 	alex src/Parser/BnfcParser/LexLatte.x
-	ghc -isrc/ app/Main.hs -outputdir bin -o latte -package microlens-platform -package mtl
+	ghc -isrc/ -iapp/ app/Main.hs -outputdir bin -o latte -package microlens-platform -package mtl -package optparse-applicative
 	gcc -c lib/runtime.c -o lib/runtime.o
 
 package:
@@ -10,7 +10,7 @@ package:
 generate-parser:
 	bnfc --haskell --functor -o src -p "Parser.BnfcParser" resources/latte.cf
 	rm src/Parser/BnfcParser/TestLatte.hs
-	
+
 clean:
 	rm -r ./bin/
 	rm latte-compiler.tar.gz

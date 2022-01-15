@@ -70,10 +70,11 @@ getNewBlockNumber = do
   modify $ over C.blockCounter (+1)
   return newBlockNumber
 
-getNewRegisterNumber :: C.FunctionTransformer Index
-getNewRegisterNumber = do
+getNewRegisterNumber :: Type -> C.FunctionTransformer Index
+getNewRegisterNumber _type = do
   newRegisterNumber <- gets $ view C.registerCounter
   modify $ over C.registerCounter (+1)
+  modify $ over C.locationTypes (Map.insert newRegisterNumber _type)
   return newRegisterNumber
 
 newVariable :: Type -> Ident -> Q.QuadrupleLocation -> C.FunctionTransformer ()
@@ -100,7 +101,17 @@ removeScope = do
   modify $ over C.scopes tail
 -- 
 -- Getters, Setters and Modifiers
--- 
+--
+getLocationType :: Q.QuadrupleLocation -> C.FunctionTransformer Type
+getLocationType (Q.ConstInt _) = return Int
+getLocationType (Q.ConstBool _) = return Bool
+getLocationType (Q.ConstString _) = return String
+getLocationType (Q.Register register) = do
+  maybeType <- Map.lookup register . view C.locationTypes <$> get
+  case maybeType of
+    Nothing -> throwErrorFunction $ InternalCompilerError "Type is not specified for given type"
+    Just _type -> return _type
+
 getCurrentBlockNumber :: C.FunctionTransformer Q.BlockNumber
 getCurrentBlockNumber = do
   maybeBlockNumber <- view C.currentBlockNumber <$> get
@@ -195,8 +206,8 @@ assertReturnTypeIsCorrect actualType = do
   unless (actualType == expectedType) (throwErrorFunction $ TypeMissmatchReturn function expectedType actualType)
 
 assertLocationType :: Q.QuadrupleLocation -> Type -> C.FunctionTransformer ()
-assertLocationType location actualType = do
-  let expectedType = getType location
+assertLocationType location expectedType = do
+  actualType <- getLocationType location
   unless (expectedType == actualType) $ throwErrorFunction $ TypeMissmatchAssigment expectedType actualType
 
 assertVariableType :: Ident -> Type -> C.FunctionTransformer ()
@@ -206,9 +217,8 @@ assertVariableType ident actualType = do
 
 assertLocationIsBool :: Q.QuadrupleLocation -> C.FunctionTransformer ()
 assertLocationIsBool location = do
-  let locationType = getType location
-  unless (locationType == Bool) $ throwErrorFunction $ TypeMissmatchIf locationType
-
+  actualType <- getLocationType location
+  unless (actualType == Bool) $ throwErrorFunction $ TypeMissmatchIf actualType
 
 assertFinalBlocksHaveReturnPath :: C.FunctionTransformer ()
 assertFinalBlocksHaveReturnPath = do
@@ -238,7 +248,7 @@ assertFinalBlocksHaveReturn = do
   case returnType of
     Void -> return ()
     _ -> do
-      assertFinalBlocksHaveReturnPath
+      -- assertFinalBlocksHaveReturnPath
       assertFinalBlocksHaveReturnFinalBlocks
 -- 
 -- Other
@@ -255,6 +265,7 @@ libraryFunctions = let
     emptyBlock = AST.Block position []
     createArg = \t -> Argument t "x"
   in [
+    (AST.Function position Int "debugGcsePrintInt" [createArg Int] emptyBlock),
     (AST.Function position Void "printInt" [createArg Int] emptyBlock),
     (AST.Function position Void "printString" [createArg String] emptyBlock),
     (AST.Function position Void "error" [] emptyBlock), 

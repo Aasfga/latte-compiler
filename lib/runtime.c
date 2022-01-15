@@ -2,6 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern int debugGcsePrintInt(int x)
+{
+	printf("%d\n", x);
+	return x;
+}
+
 extern void printInt(int v)
 {
 	printf("%d\n", v);

@@ -10,8 +10,11 @@ import Data.List
 import Lens.Micro.Platform
 import qualified Data.Map as Map
 
+type ValueIndex = Int
+
 data FunctionContext 
   = FunctionContext {
+    _blocks :: Map.Map Q.BlockNumber Q.Block,
     _labelCounter :: Int,
     _functionIdent :: Ident,
     _frameSize :: Int,
@@ -22,7 +25,8 @@ data GlobalContext
   = GlobalContext {
     _stringCounter :: Int, 
     _strings :: Map.Map String Index,
-    _code :: [String]
+    _code :: [String],
+    _stackCounter :: Int
   }
 
 $(makeLenses ''GlobalContext)
@@ -34,13 +38,13 @@ type FunctionGenerator = StateT FunctionContext GlobalGenerator
 -- Functions
 -- 
 emptyGlobalContext :: GlobalContext
-emptyGlobalContext = GlobalContext 0 Map.empty []
+emptyGlobalContext = GlobalContext 0 Map.empty [] 0
 
 emptyFunctionContext :: Q.FunctionDefinition -> FunctionContext
 emptyFunctionContext functionDefinition = let
-    fi = view Q.functionIdent functionDefinition
-    bs = view Q.blocks functionDefinition
-    rc = view Q.registerCounter functionDefinition
+    __functionIdent = view Q.functionIdent functionDefinition
+    __blocks = view Q.blocks functionDefinition
+    __registerCounter = view Q.registerCounter functionDefinition
   in
-    FunctionContext 0 fi rc Map.empty
+    FunctionContext __blocks 0 __functionIdent __registerCounter Map.empty
 

@@ -67,7 +67,6 @@ instance Show ValueLocation where
 -- 
 getArgumentLocation :: Index -> ValueLocation
 getArgumentLocation index
-  | index < 0 = error "Index must be greater than 0" 
   | index == 0 = RDI
   | index == 1 = RSI
   | index == 2 = RDX
@@ -78,6 +77,7 @@ getArgumentLocation index
       offset = (index - 4) * 8
     in
       FrameOffset offset
+  | otherwise = error "Index must be greater than 0" 
 
 
 

@@ -30,3 +30,4 @@ latte
 latte-compiler.tar.gz
 
 src/Parser/BnfcParser/**
+test.lat

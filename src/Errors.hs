@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Errors where
 import Data.List
 import Types
@@ -18,8 +19,12 @@ data LatteError
   | TypeMissmatchReturn Ident Type Type
   | MissingReturn Ident Type
   | IntegerOutOfBound Integer
-  -- Generator errors
 
+data CompilerError 
+  = CompilerError LatteError Position
+-- 
+-- Instances
+--
 instance Show LatteError where   
   show (ParserError msg) = 
     "Parser error." ++ show msg
@@ -59,4 +64,8 @@ instance Show LatteError where
     "Integer " ++ show x ++ " is out of bound"  
   show (InternalCompilerError msg) = 
     "Internal compiler error. " ++ msg
-    
+
+instance Show CompilerError where
+  show (CompilerError errorCategory NoPosition) = show errorCategory
+  show (CompilerError errorCategory (Position line column)) = show line ++ ":" ++ show column ++ ": " ++ show errorCategory
+  

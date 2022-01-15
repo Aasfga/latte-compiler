@@ -1,6 +1,6 @@
 module IntegrationTests.AnalyzerTest where 
 
-import Errors ( LatteError )
+import Errors ( CompilerError )
 import Parser.Parser ( parse )
 import Data.Maybe ( isJust, isNothing )
 import IntegrationTests.Generator (IntegrationTest)
@@ -8,10 +8,10 @@ import IntermediateCode.Transformer
 import Control.Monad.Except
 import Types
 
-runner :: String -> Either (LatteError, Position) ()
+runner :: String -> Either CompilerError ()
 runner code = 
   case parse code of
-    Left error -> throwError (error, NoPosition)
+    Left error -> throwError error
     Right ast -> do
       transformToQuadruples ast
       return ()

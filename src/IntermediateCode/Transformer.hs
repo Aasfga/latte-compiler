@@ -3,6 +3,7 @@
 module IntermediateCode.Transformer where
 
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Control.Monad.State
 import Control.Monad.Except
 import Errors
@@ -61,9 +62,9 @@ transformExpression' (AST.Operation _ firstExpression And secondExpression) = do
   let ifAssigment = AST.DummyAssigment dummyIdent secondExpression
   let elseAssigment = AST.DummyAssigment dummyIdent $ AST.DummyBool False
   let statement = AST.DummyIfElse firstExpression ifAssigment elseAssigment
-  leaveQuadrupleBlock
+  leaveQuadrupleBlock Q.Jump
   (newBlockNumber, result) <- transformBlock (AST.DummyBlock statement) isAlive
-  transformStatement result AST.DummyEmpty
+  transformStatement (Just result) AST.DummyEmpty
   location <- getLocation dummyIdent
   removeScope
   addQuadrupleEdge currentBlockNumber newBlockNumber
@@ -77,9 +78,9 @@ transformExpression' (AST.Operation _ firstExpression Or secondExpression) = do
   let ifAssigment = AST.DummyAssigment dummyIdent $ AST.DummyBool True
   let elseAssigment = AST.DummyAssigment dummyIdent secondExpression
   let statement = AST.DummyIfElse firstExpression ifAssigment elseAssigment
-  leaveQuadrupleBlock
+  leaveQuadrupleBlock Q.Jump
   (newBlockNumber, result) <- transformBlock (AST.DummyBlock statement) isAlive
-  transformStatement result AST.DummyEmpty
+  transformStatement (Just result) AST.DummyEmpty
   location <- getLocation dummyIdent
   removeScope
   addQuadrupleEdge currentBlockNumber newBlockNumber
@@ -87,7 +88,9 @@ transformExpression' (AST.Operation _ firstExpression Or secondExpression) = do
 transformExpression' (AST.Operation _ firstExpression op secondExpression) = do
   firstLocation <- transformExpression firstExpression
   secondLocation <- transformExpression secondExpression
-  case (getType firstLocation, getType secondLocation) of
+  firstLocationType <- getLocationType firstLocation
+  secondLocationType <- getLocationType secondLocation
+  case (firstLocationType, secondLocationType) of
     (Int, Int) -> transformBinaryOperation Int op firstLocation secondLocation
     (Bool, Bool) -> transformBinaryOperation Bool op firstLocation secondLocation
     (String, String) -> transformBinaryOperation String op firstLocation secondLocation
@@ -95,7 +98,9 @@ transformExpression' (AST.Operation _ firstExpression op secondExpression) = do
 transformExpression' (AST.Compare _ firstExpression op secondExpression) = do
   firstLocation <- transformExpression firstExpression
   secondLocation <- transformExpression secondExpression
-  case (getType firstLocation, getType secondLocation) of
+  firstLocationType <- getLocationType firstLocation
+  secondLocationType <- getLocationType secondLocation
+  case (firstLocationType, secondLocationType) of
     (Int, Int) -> integerCompare firstLocation op secondLocation
     (Bool, Bool) -> boolCompare firstLocation op secondLocation
     (String, String) -> stringCompare firstLocation op secondLocation
@@ -115,34 +120,33 @@ transformDeclaration _type (AST.NoInit p ident) = do
 transformDeclaration _type (AST.Init p ident expression) = do
   lift $ savePosition p
   expressionLocation <- transformExpression expression
-  let expressionType = getType expressionLocation
+  expressionType <- getLocationType expressionLocation
   assertLocationType expressionLocation _type
   newVariable _type ident expressionLocation
 
 type StatementReturn = ([Q.BlockNumber], Bool)
 
-defaultStatementReturn :: C.FunctionTransformer StatementReturn
+defaultStatementReturn :: C.FunctionTransformer (Maybe StatementReturn)
 defaultStatementReturn = do
-  currentAlive <- view C.isAlive <$> getCurrentBlock
-  return ([], currentAlive)
+  isAlive <- view C.isAlive <$> getCurrentBlock
+  blockNumber <- getCurrentBlockNumber
+  return $ Just ([blockNumber], isAlive)
 
-transformStatement' :: AST.Statement -> C.FunctionTransformer StatementReturn
-transformStatement' (AST.Empty _) = return ([], True)
+transformStatement' :: AST.Statement -> C.FunctionTransformer (Maybe StatementReturn)
+transformStatement' (AST.Empty _) = defaultStatementReturn
 transformStatement' (AST.InnerBlock _ block) = do
   currentAlive <- view C.isAlive <$> getCurrentBlock
   currentBlockNumber <- getCurrentBlockNumber
-  addJumpPlaceholder
-  leaveQuadrupleBlock 
+  leaveQuadrupleBlock Q.Jump
   (newBlockNumber, result) <- transformBlock block currentAlive
-  let (finalBlocks, areFinalBlocksAlive) = result
   addQuadrupleEdge currentBlockNumber newBlockNumber
-  return result
+  return $ Just result
 transformStatement' (AST.Declaration _ _type declarations) = do
   mapM_ (transformDeclaration _type) declarations
   defaultStatementReturn
 transformStatement' (AST.Assigment _ ident expression) = do
   expressionLocation <- transformExpression expression
-  let expressionType = getType expressionLocation
+  expressionType <- getLocationType expressionLocation
   assertVariableType ident expressionType
   setLocation ident expressionLocation
   defaultStatementReturn
@@ -163,39 +167,40 @@ transformStatement' (AST.Return _ expression) = do
   currentBlockNumber <- getCurrentBlockNumber
   returnExpression expressionLocation
   modifyCurrentBlock $ set C.hasReturn True
-  leaveQuadrupleBlock
-  return ([currentBlockNumber], False)
+  leaveQuadrupleBlock Q.Return
+  return Nothing
 transformStatement' (AST.VoidReturn _) = do
   currentBlockNumber <- getCurrentBlockNumber
   returnVoid
   modifyCurrentBlock $ set C.hasReturn True
-  leaveQuadrupleBlock
-  return ([currentBlockNumber], False)
+  leaveQuadrupleBlock Q.Return
+  return Nothing
 transformStatement' (AST.If _ expression statement) = do
+  expressionLocation <- transformExpression expression
+  assertLocationIsBool expressionLocation
   let dummyBlock = AST.DummyBlock statement
   currentAlive <- view C.isAlive <$> getCurrentBlock
-  expressionLocation <- transformExpression expression
   currentBlockNumber <- getCurrentBlockNumber
-  assertLocationIsBool expressionLocation
-  (isIfAlive, cond) <- case expressionLocation of 
-    (Q.ConstBool x) -> return $ (currentAlive && x, x)
-    _ -> return (currentAlive, False)
-  when (not cond) $ addConditionalJumpPlaceholder expressionLocation
-  when (cond) $ addJumpPlaceholder
-  leaveQuadrupleBlock
+  (isIfAlive, maybeValue) <- case expressionLocation of 
+    (Q.ConstBool value) -> return $ (currentAlive && value, Just value)
+    _ -> return (currentAlive, Nothing)
+  when (isNothing maybeValue) $ leaveQuadrupleBlock $ Q.ConditionalJump expressionLocation
+  when (isJust maybeValue) $ leaveQuadrupleBlock $ Q.Jump
   (newBlockNumber, result) <- transformBlock dummyBlock isIfAlive
-  let (finalBlocks, areFinalBlocksAlive) = result
-  addQuadrupleEdge currentBlockNumber newBlockNumber
-  return (if not cond then currentBlockNumber:finalBlocks else finalBlocks, currentAlive || areFinalBlocksAlive)
+  let (ifFinals, ifFinalsAlive) = result
+  when (isNothing maybeValue || fromJust maybeValue) $ addQuadrupleEdge currentBlockNumber newBlockNumber
+  return $ Just $ case (maybeValue) of
+    Just True -> (ifFinals, ifFinalsAlive)
+    Just False -> ([currentBlockNumber], currentAlive)
+    Nothing -> (currentBlockNumber:ifFinals, currentAlive || ifFinalsAlive)
 transformStatement' (AST.IfElse _ expression ifStatement elseStatement) = do
+  expressionLocation <- transformExpression expression
+  assertLocationIsBool expressionLocation
   let ifBlock = AST.DummyBlock ifStatement
   let elseBlock = AST.DummyBlock elseStatement
   currentAlive <- view C.isAlive <$> getCurrentBlock
-  expressionLocation <- transformExpression expression
   currentBlockNumber <- getCurrentBlockNumber
-  assertLocationIsBool expressionLocation
-  addConditionalJumpPlaceholder expressionLocation
-  leaveQuadrupleBlock
+  leaveQuadrupleBlock $ Q.ConditionalJump expressionLocation
   (ifAlive, elseAlive) <- case expressionLocation of
     (Q.ConstBool x) -> return (currentAlive && x, currentAlive && (not x))
     _ -> return (currentAlive, currentAlive)
@@ -203,43 +208,48 @@ transformStatement' (AST.IfElse _ expression ifStatement elseStatement) = do
   (elseBlockNumber, (elseFinals, elseFinalsAlive)) <- transformBlock elseBlock elseAlive
   addQuadrupleEdge currentBlockNumber ifBlockNumber
   addQuadrupleEdge currentBlockNumber elseBlockNumber 
-  return (ifFinals ++ elseFinals, ifAlive || elseAlive)
+  return $ Just (ifFinals ++ elseFinals, ifAlive || elseAlive)
 transformStatement' (AST.While _ expression statement) = do
   let dummyBlock = AST.DummyBlock statement
   currentAlive <- view C.isAlive <$> getCurrentBlock
   currentBlockNumber <- getCurrentBlockNumber
-  addJumpPlaceholder
-  leaveQuadrupleBlock
-  _ <- newQuadrupleBlock currentAlive
+  leaveQuadrupleBlock Q.Jump
+  beginConditionBlockNumber <- newQuadrupleBlock currentAlive
   expressionLocation <- transformExpression expression
-  conditionBlockNumber <- getCurrentBlockNumber
+  finalConditionBlockNumber <- getCurrentBlockNumber
   assertLocationIsBool expressionLocation
-  isWhileAlive <- case expressionLocation of
-    (Q.ConstBool x) -> return $ currentAlive && x
-    _ -> return currentAlive
-  addConditionalJumpPlaceholder expressionLocation
-  leaveQuadrupleBlock
-  (loopBlockNumber, (finalBlocks, areFinalBlocksAlive)) <- transformBlock dummyBlock currentAlive
-  mapM_ (\b -> modifyBlock b $ over C.code (C.JumpPlaceholder:)) finalBlocks
-  addQuadrupleEdge currentBlockNumber conditionBlockNumber
-  addQuadrupleEdge conditionBlockNumber loopBlockNumber
-  mapM_ (\s -> addQuadrupleEdge s conditionBlockNumber) finalBlocks
-  return ([conditionBlockNumber], currentAlive)
+  (isWhileAlive, maybeValue) <- case expressionLocation of
+    (Q.ConstBool value) -> return $ (currentAlive && value, Just value)
+    _ -> return (currentAlive, Nothing)
+  leaveQuadrupleBlock $ Q.ConditionalJump expressionLocation
+  (loopBlockNumber, (loopFinals, loopFinalsAlive)) <- transformBlock dummyBlock currentAlive
+  addQuadrupleEdge currentBlockNumber beginConditionBlockNumber
+  addQuadrupleEdge finalConditionBlockNumber loopBlockNumber
+  mapM_ (\s -> addQuadrupleEdge s beginConditionBlockNumber) loopFinals
+  case maybeValue of
+    Just True -> return Nothing
+    _ -> return $ Just ([finalConditionBlockNumber], currentAlive)
 transformStatement' (AST.Expression _ expression) = do
   _ <- transformExpression expression
   defaultStatementReturn
 
-transformStatement :: StatementReturn -> AST.Statement -> C.FunctionTransformer StatementReturn
-transformStatement ([], _) statement = do
+transformStatement :: (Maybe StatementReturn) -> AST.Statement -> C.FunctionTransformer (Maybe StatementReturn)
+transformStatement statementReturn statement = do
   let position = getPosition statement
   when (position /= NoPosition) $ lift $ savePosition position
-  transformStatement' statement
-transformStatement (finalBlocks, anyAlive) statement = do
-  let position = getPosition statement
-  lift $ savePosition position
-  assertNotInQuadrupleBlock
-  newBlockNumber <- newQuadrupleBlock anyAlive
-  mapM_ (\s -> addQuadrupleEdge s newBlockNumber) finalBlocks
+  blockNumber <- fromMaybe (-1) . view C.currentBlockNumber <$> get
+  case statementReturn of
+    Nothing -> do
+      assertNotInQuadrupleBlock
+      void $ newQuadrupleBlock False
+    Just ([], _) -> return ()
+    Just (finalBlocks@(first:_), finalBlocksAlive) -> do
+      case first == blockNumber && length finalBlocks == 1 of
+        True -> return ()
+        False -> do
+          assertNotInQuadrupleBlock
+          newBlockNumber <- newQuadrupleBlock finalBlocksAlive
+          mapM_ (\s -> addQuadrupleEdge s newBlockNumber) finalBlocks
   transformStatement' statement
 
 transformBlock :: AST.Block -> Bool -> C.FunctionTransformer (Q.BlockNumber, StatementReturn)
@@ -247,25 +257,33 @@ transformBlock (AST.Block p statements) isAlive = do
   lift $ savePosition p
   newBlockNumber <- newQuadrupleBlock isAlive
   newScope
-  (returnedBlocks, areFinalBlocksAlive) <- foldM transformStatement ([], isAlive) statements
+  result <- foldM transformStatement (Just ([], isAlive)) statements
   removeScope
-  finalBlocks <- case returnedBlocks of
-    [] -> (:[]) <$> getCurrentBlockNumber
-    list -> return list
-  gentlyLeaveQuadrupleBlock
-  return (newBlockNumber, (finalBlocks, areFinalBlocksAlive))
+  case result of 
+    Nothing -> do
+      dummyBlockNumber <- newQuadrupleBlock False
+      leaveQuadrupleBlock Q.None
+      return (newBlockNumber, ([dummyBlockNumber], False))
+    Just (stmtFinalBlocks, stmtFinalBlocksAlive) -> do
+      finalBlocks <- case stmtFinalBlocks of
+        [] -> (:[]) <$> getCurrentBlockNumber
+        list -> return list
+      gentlyLeaveQuadrupleBlock Q.None
+      return (newBlockNumber, (finalBlocks, stmtFinalBlocksAlive))
 
 transformFunctionBlock :: AST.Block -> C.FunctionTransformer ()
 transformFunctionBlock (AST.Block p statements) = do
   lift $ savePosition p
   newScope
-  x <- newQuadrupleBlock True
+  firstBlock <- newQuadrupleBlock True
   modifyCurrentBlock $ set C.isAlive True
   arguments <- gets $ view C.arguments
   mapM_ (uncurry argumentInit) (zip [0..] arguments)
-  (finalBlocks, _) <- foldM transformStatement ([], True) statements
-  modify $ set C.finalBlocks finalBlocks
-  gentlyLeaveQuadrupleBlock
+  result <- foldM transformStatement (Just ([firstBlock], True)) statements
+  case result of 
+    Just (finalBlocks, _) -> modify $ set C.finalBlocks finalBlocks
+    _ -> return ()
+  gentlyLeaveQuadrupleBlock Q.None
   removeScope
 
 transformFunction :: AST.Block -> C.FunctionTransformer Q.FunctionDefinition
@@ -274,9 +292,8 @@ transformFunction block = do
   returnType <- view C.returnType <$> get
   when (returnType == Void) addDummyReturnVoidBlock
   removeEdgesFromReturningBlocks
-  addDummyJumps
-  replacePreQuadruples 
   assertFinalBlocksHaveReturn
+  addDummyJumps
   parseFunctionContext
   
 transformGlobalSymbolToQuadruples :: AST.GlobalSymbol -> C.GlobalTransformer ()
@@ -291,9 +308,9 @@ transformProgram (AST.Program _ globalSymbols) = do
   assertMainExists
   view C.quadruples <$> get
 
-transformToQuadruples :: AST.Program -> Either (LatteError, Position) Q.Quadruples
+transformToQuadruples :: AST.Program -> Either CompilerError Q.Quadruples
 transformToQuadruples program = case runGlobalTransformer program of
-    Left error -> Left error
+    Left (error, position) -> Left $ CompilerError error position
     Right (quadruples, _) -> let
         functions = view Q.functions quadruples
         noLibraryFunctions = foldl (flip Map.delete) functions $ map getIdent libraryFunctions
@@ -308,24 +325,25 @@ addDummyJumps = do
   blockNumbers <- Map.keys . view C.blocks <$> get
   mapM_ (\b -> do
       nextBlocks <- view C.nextBlocks <$> getBlock b
-      when (length nextBlocks == 1) $ modifyBlock b $ over C.code (C.JumpPlaceholder:)
+      when (length nextBlocks == 1) $ modifyBlock b $ set C.finalOperation Q.Jump
     ) blockNumbers
 
 parsePreQuadruple :: C.PreQuadruple -> C.FunctionTransformer Q.Quadruple
 parsePreQuadruple (C.Quadruple quadruple) = return quadruple
-parsePreQuadruple _ = throwErrorFunction $ InternalCompilerError "Not able to parse prequadruple"
 
 parseBlockContext :: C.BlockContext -> C.FunctionTransformer Q.Block
 parseBlockContext blockContext = do
   let blockNumber = view C.blockNumber blockContext
+  let phiVariables = view C.phiVariables blockContext
   let finalVariables = view C.finalVariables blockContext
   let previousBlocks = view C.previousBlocks blockContext
   let nextBlocks = view C.nextBlocks blockContext
   let isAlive = view C.isAlive blockContext
   let preCode = view C.code blockContext
+  let finalOperation = view C.finalOperation blockContext
   code <- reverse <$> mapM parsePreQuadruple preCode
   let hasReturn = view C.hasReturn blockContext
-  return $ Q.Block blockNumber finalVariables previousBlocks nextBlocks isAlive code hasReturn
+  return $ Q.Block blockNumber phiVariables Set.empty finalVariables previousBlocks nextBlocks isAlive code hasReturn finalOperation
 
 parseFunctionContext :: C.FunctionTransformer Q.FunctionDefinition
 parseFunctionContext = do
@@ -352,38 +370,6 @@ addDummyReturnVoidBlock = do
   finalBlocks <- view C.finalBlocks <$> get
   (lastBlockNumber, _) <- transformBlock block True
   mapM_ (\s -> addQuadrupleEdge s lastBlockNumber) finalBlocks
-
-replacePreQuadruple :: Q.BlockNumber -> C.PreQuadruple -> C.FunctionTransformer C.PreQuadruple
-replacePreQuadruple blockNumber (C.PhiPlaceholder ident temporaryRegister) = do
-  previousBlocksNumbers <- view C.previousBlocks <$> getBlock blockNumber
-  maybeLocations <- map (Map.lookup ident . view C.finalVariables) <$> mapM getBlock previousBlocksNumbers
-  unless (all isJust maybeLocations) $ throwErrorFunction $ InternalCompilerError "Not able to create phi function"
-  let locations = map fromJust maybeLocations
-  let phi = Q.Phi $ zip locations previousBlocksNumbers
-  return $ C.Quadruple $ Q.QuadrupleOperation temporaryRegister phi 
-replacePreQuadruple blockNumber C.JumpPlaceholder = do
-  nextBlockNumbers <- view C.nextBlocks <$> getBlock blockNumber
-  unless (length nextBlockNumbers == 1) $ throwErrorFunction $ InternalCompilerError "Not able to create jump operation"
-  let target:[] = nextBlockNumbers
-  let jump = Q.Jump target
-  return $ C.Quadruple $ jump
-replacePreQuadruple blockNumber (C.ConditionalJumpPlaceholder location) = do
-  nextBlockNumbers <- view C.nextBlocks <$> getBlock blockNumber
-  unless (length nextBlockNumbers == 2) $ throwErrorFunction $ InternalCompilerError "Not able to create conditional jump operation"
-  let elseJump:ifJump:[] = nextBlockNumbers
-  let conditionalJump = Q.ConditionalJump location ifJump elseJump
-  return $ C.Quadruple $ conditionalJump
-replacePreQuadruple _ preQuadruple = return preQuadruple
-
-replacePreQuadruples :: C.FunctionTransformer ()
-replacePreQuadruples = do
-  blocks <- Map.elems . view C.blocks <$> get
-  mapM_ (\block -> do
-    let code = view C.code block
-    let blockNumber = view C.blockNumber block
-    newCode <- mapM (replacePreQuadruple blockNumber) code
-    modifyBlock blockNumber $ set C.code newCode
-    ) blocks
 -- 
 -- Runners
 -- 
@@ -398,15 +384,18 @@ runFunctionTransformer returnType functionIdent arguments block = let
     initialState = C.emptyFunctionContext returnType functionIdent arguments 
   in
     runStateT (transformFunction block) initialState
-
+-- 
+-- Debug
+-- 
 checkBlock :: C.BlockContext -> C.FunctionTransformer ()
 checkBlock block = do
   let blockNumber = view C.blockNumber block
   finalBlocks <- traceShowId . view C.finalBlocks <$> get
   unless (blockNumber < 10000) $ throwErrorFunction $ InternalCompilerError "xyz"
-  unless (length finalBlocks <10000) $ throwErrorFunction $ InternalCompilerError "xyz"
 
 checkBlocks :: C.FunctionTransformer ()
 checkBlocks = do
   blocks <- Map.elems . view C.blocks <$> get
   mapM_ (checkBlock . traceShowId) blocks
+  finalBlocks <- view C.finalBlocks <$> get 
+  when (trace ("finalBlocks=" ++ show finalBlocks) False) $ throwErrorFunction $ InternalCompilerError "xyz"
