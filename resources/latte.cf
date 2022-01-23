@@ -1,127 +1,98 @@
--- programs ------------------------------------------------
+-- Top definitions
 
 entrypoints Program ;
 
-Program.   Program ::= [Function] ;
+Program.                Program ::= [GlobalSymbol] ;
 
-Function.	 Function ::= Type Ident "(" [Argument] ")" Block ;
+Function.	              GlobalSymbol ::= Type Ident "(" [Argument] ")" Block ;
+Class.                  GlobalSymbol ::= "class" Ident "{" [ClassMember] "}" ;
+separator nonempty GlobalSymbol "" ;
 
-separator nonempty Function "" ;
-
-Argument. 	   Argument ::= Type Ident;
-
+Argument. 	            Argument ::= Type Ident;
 separator  Argument "," ;
 
--- statements ----------------------------------------------
+AttributeDefinition.    ClassMember ::= Type Ident ";" ;
+separator nonempty ClassMember "" ;
 
-Block.     Block ::= "{" [Statement] "}" ;
+-- Statements
 
-separator  Statement "" ;
+Block.                  Block ::= "{" [Statement] "}" ;
 
-Empty.     Statement ::= ";" ;
-
-InnerBlock.   Statement ::= Block ;
-
-Decl.  Statement ::= Type [Declaration] ";" ;
-
-NoInit.    Declaration ::= Ident ; 
-
-Init.      Declaration ::= Ident "=" Expr ;
-
+NoInit.                 Declaration ::= Ident ; 
+Init.                   Declaration ::= Ident "=" Expr ;
 separator nonempty Declaration "," ;
 
-Ass.       Statement ::= Ident "=" Expr  ";" ;
+Empty.                  Statement ::= ";" ;
+InnerBlock.             Statement ::= Block ;
+Decl.                   Statement ::= Type [Declaration] ";" ;
+Ass.                    Statement ::= LValue "=" Expr  ";" ;
+Incr.                   Statement ::= LValue "++"  ";" ;
+Decr.                   Statement ::= LValue "--"  ";" ;
+Return.                 Statement ::= "return" Expr ";" ;
+VoidReturn.             Statement ::= "return" ";" ;
+If.                     Statement ::= "if" "(" Expr ")" Statement  ;
+IfElse.                 Statement ::= "if" "(" Expr ")" Statement "else" Statement  ;
+While.                  Statement ::= "while" "(" Expr ")" Statement ;
+ForEach.                Statement ::= "for" "(" Type Ident ":" Expr ")" Statement ;
+SExp.                   Statement ::= Expr  ";" ;
+separator  Statement "" ;
 
-Incr.      Statement ::= Ident "++"  ";" ;
+-- Types
 
-Decr.      Statement ::= Ident "--"  ";" ;
-
-Return.       Statement ::= "return" Expr ";" ;
-
-VoidReturn.      Statement ::= "return" ";" ;
-
-If.      Statement ::= "if" "(" Expr ")" Statement  ;
-
-IfElse.  Statement ::= "if" "(" Expr ")" Statement "else" Statement  ;
-
-While.     Statement ::= "while" "(" Expr ")" Statement ;
-
-SExp.      Statement ::= Expr  ";" ;
-
--- Types ---------------------------------------------------
-
-Int.       Type ::= "int" ;
-
-Str.       Type ::= "string" ;
-
-Bool.      Type ::= "boolean" ;
-
-Void.      Type ::= "void" ;
-
-internal   Fun. Type ::= Type "(" [Type] ")" ;
-
+Int.                    Type ::= "int" ;
+Str.                    Type ::= "string" ;
+Bool.                   Type ::= "boolean" ;
+Void.                   Type ::= "void" ;
+Array.                  Type ::= Type "[]" ;
+Object.                 Type ::= Ident ;
+internal Fun.           Type ::= Type "(" [Type] ")" ;
 separator  Type "," ;
 
--- Expressions ---------------------------------------------
+-- LValues
 
-Var.      Expr6 ::= Ident ;
+LVariable.              LValue ::= Ident ;
+LArrayAccess.           LValue ::= Expr7 "[" Expr "]" ;
+LAttribute.             LValue ::= Expr7 "." Ident ;
 
-LitInt.   Expr6 ::= Integer ;
+-- Expressions
 
-LitTrue.  Expr6 ::= "true" ;
-
-LitFalse. Expr6 ::= "false" ;
-
-App.      Expr6 ::= Ident "(" [Expr] ")" ;
-
-String.   Expr6 ::= String ;
-
-Neg.       Expr5 ::= "-" Expr6 ;
-
-Not.       Expr5 ::= "!" Expr6 ;
-
-Mul.      Expr4 ::= Expr4 MulOp Expr5 ;
-
-Add.      Expr3 ::= Expr3 AddOp Expr4 ;
-
-Rel.      Expr2 ::= Expr2 RelOp Expr3 ;
-
-And.      Expr1 ::= Expr2 "&&" Expr1 ;
-
-Or.       Expr ::= Expr1 "||" Expr ;
-
-coercions  Expr 6 ;
-
+Cast.                   Expr7 ::= "(" Type ")" Expr ;
+LValue.                 Expr7 ::= LValue ;
+LitInt.                 Expr7 ::= Integer ;
+LitTrue.                Expr7 ::= "true" ;
+LitFalse.               Expr7 ::= "false" ;
+LitNull.                Expr7 ::= "null" ;
+App.                    Expr7 ::= Ident "(" [Expr] ")" ;
+String.                 Expr7 ::= String ;
+NewObject.              Expr6 ::= "new" Type ;
+NewArray.               Expr6 ::= "new" Type "[" Expr "]" ;
+Neg.                    Expr5 ::= "-" Expr6 ;
+Not.                    Expr5 ::= "!" Expr6 ;
+Mul.                    Expr4 ::= Expr4 MulOp Expr5 ;
+Add.                    Expr3 ::= Expr3 AddOp Expr4 ;
+Rel.                    Expr2 ::= Expr2 RelOp Expr3 ;
+And.                    Expr1 ::= Expr2 "&&" Expr1 ;
+Or.                     Expr ::= Expr1 "||" Expr ;
+coercions  Expr 7 ;
 separator  Expr "," ;
 
--- operators -----------------------------------------------
+-- Operators
 
-Plus.      AddOp ::= "+" ;
+Plus.                   AddOp ::= "+" ;
+Minus.                  AddOp ::= "-" ;
+Times.                  MulOp ::= "*" ;
+Div.                    MulOp ::= "/" ;
+Mod.                    MulOp ::= "%" ;
 
-Minus.     AddOp ::= "-" ;
+LTH.                    RelOp ::= "<" ;
+LE.                     RelOp ::= "<=" ;
+GTH.                    RelOp ::= ">" ;
+GE.                     RelOp ::= ">=" ;
+EQU.                    RelOp ::= "==" ;
+NE.                     RelOp ::= "!=" ;
 
-Times.     MulOp ::= "*" ;
-
-Div.       MulOp ::= "/" ;
-
-Mod.       MulOp ::= "%" ;
-
-LTH.       RelOp ::= "<" ;
-
-LE.        RelOp ::= "<=" ;
-
-GTH.       RelOp ::= ">" ;
-
-GE.        RelOp ::= ">=" ;
-
-EQU.       RelOp ::= "==" ;
-
-NE.        RelOp ::= "!=" ;
-
--- comments ------------------------------------------------
+-- comments
 
 comment    "#" ;
-
 comment    "//" ;
-
 comment    "/*" "*/" ;
