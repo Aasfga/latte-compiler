@@ -2,6 +2,7 @@
 module IntermediateCode.Transformer.Context where
 
 import qualified Data.Map as Map
+import qualified Data.Bimap as Bimap
 import Control.Monad.State
 import Errors
 import Types
@@ -45,13 +46,21 @@ data FunctionContext
     _finalBlocks :: [Q.BlockNumber]
   }
 
+data ClassDefinition
+  = ClassDefinition {
+    _attributes :: Map.Map Ident Index,
+    _attributeTypes :: Map.Map Ident Type
+  }
+
 data GlobalContext 
   = GlobalContext {
     _quadruples :: Q.Quadruples,
+    _classes :: Map.Map Ident ClassDefinition,
     _position :: Position
   }
 
 $(makeLenses ''BlockContext)
+$(makeLenses ''ClassDefinition)
 $(makeLenses ''FunctionContext)
 $(makeLenses ''GlobalContext)
 
@@ -59,7 +68,7 @@ type GlobalTransformer = StateT GlobalContext (Either (LatteError, Position))
 type FunctionTransformer = StateT FunctionContext GlobalTransformer
 
 emptyGlobalContext :: GlobalContext 
-emptyGlobalContext = GlobalContext Q.emptyQuadruplesCode NoPosition
+emptyGlobalContext = GlobalContext Q.emptyQuadruplesCode Map.empty NoPosition
 
 emptyBlockContext :: Q.BlockNumber -> Bool -> (Map.Map Ident Q.TemporaryRegister) -> BlockContext
 emptyBlockContext __blockNumber __isAlive __phiVariables = BlockContext __blockNumber __phiVariables Map.empty [] [] __isAlive [] False Q.None

@@ -10,17 +10,25 @@ convertPosition Nothing = Types.NoPosition
 
 convertProgram :: Src.Program' a -> Dest.Program' a
 convertProgram (Src.Program a functions) = 
-  Dest.Program a (map convertFunction functions)
+  Dest.Program a (map convertGlobalSymbol functions)
 
-convertFunction :: Src.Function' a -> Dest.GlobalSymbol' a
-convertFunction (Src.Function a _type ident arguments block) = 
-  Dest.Function a (convertType _type) (convertIdent ident) (map convertArgument arguments) (convertBlock block)
+convertGlobalSymbol :: Src.GlobalSymbol' a -> Dest.GlobalSymbol' a
+convertGlobalSymbol (Src.Function a _type ident arguments block) 
+  = Dest.Function a (convertType _type) (convertIdent ident) (map convertArgument arguments) (convertBlock block)
+convertGlobalSymbol (Src.Class a ident members)
+  = Dest.Class a (convertIdent ident) $ map convertClassMember members
+
+convertClassMember :: Src.ClassMember' a -> Dest.ClassMember' a
+convertClassMember (Src.AttributeDefinition a _type ident) 
+  = Dest.AttributeDefinition a (convertType _type) (convertIdent ident)
 
 convertType :: Src.Type' a -> Types.Type
 convertType (Src.Int _) = Types.Int
 convertType (Src.Str _) = Types.String
 convertType (Src.Bool _) = Types.Bool
 convertType (Src.Void _) = Types.Void
+convertType (Src.Object _ ident) = Types.Object (convertIdent ident)
+convertType (Src.Array _ _type) = Types.Array (convertType _type)
 convertType (Src.Fun _ retType argTypes) = 
   Types.Function (convertType retType) (map convertType argTypes)
 
@@ -42,12 +50,12 @@ convertStatement (Src.InnerBlock a block) =
   Dest.InnerBlock a (convertBlock block)
 convertStatement (Src.Decl a _type declarations) = 
   Dest.Declaration a (convertType _type) (map convertDeclaration declarations)
-convertStatement (Src.Ass a ident expr) =
-  Dest.Assigment a (convertIdent ident) (convertExpression expr)
-convertStatement (Src.Incr a ident) =
-  Dest.Increment a (convertIdent ident)
-convertStatement (Src.Decr a ident) =
-  Dest.Decrement a (convertIdent ident)
+convertStatement (Src.Ass a lvalue expr) =
+  Dest.Assigment a (convertLValue lvalue) (convertExpression expr)
+convertStatement (Src.Incr a lvalue) =
+  Dest.Increment a (convertLValue lvalue)
+convertStatement (Src.Decr a lvalue) =
+  Dest.Decrement a (convertLValue lvalue)
 convertStatement (Src.Return a expr) = 
   Dest.Return a (convertExpression expr)
 convertStatement (Src.VoidReturn a) = 
@@ -58,22 +66,40 @@ convertStatement (Src.IfElse a expr first second) =
   Dest.IfElse a (convertExpression expr) (convertStatement first) (convertStatement second)
 convertStatement (Src.While a expr statement) =
   Dest.While a (convertExpression expr) (convertStatement statement)
+convertStatement (Src.ForEach a _type ident expression statement) = 
+  Dest.ForEach a (convertType _type) (convertIdent ident) (convertExpression expression) (convertStatement statement)
 convertStatement (Src.SExp a expr) =
   Dest.Expression a (convertExpression expr)
+
+convertLValue :: Src.LValue' a -> Dest.LValue' a
+convertLValue (Src.Variable a ident) 
+  = Dest.Variable a (convertIdent ident) 
+convertLValue (Src.ArrayAccess a array index) 
+  = Dest.ArrayAccess a (convertExpression array) (convertExpression index)
+convertLValue (Src.Attribute a object ident)
+  = Dest.Attribute a (convertExpression object) (convertIdent ident)
  
 convertExpression :: Src.Expr' a -> Dest.Expression' a
-convertExpression (Src.Var a ident) = 
-  Dest.Variable a (convertIdent ident)
+convertExpression (Src.Cast a _type expression) = 
+  Dest.Cast a (convertType _type) (convertExpression expression)
+convertExpression (Src.LValue a lvalue) =
+  Dest.LValue a (convertLValue lvalue)
 convertExpression (Src.LitInt a value) = 
   Dest.Value a (Dest.IntegerValue value)
 convertExpression (Src.LitTrue a) = 
   Dest.Value a (Dest.BoolValue True)
 convertExpression (Src.LitFalse a) = 
   Dest.Value a (Dest.BoolValue False)
+convertExpression (Src.LitNull a) =
+  Dest.Value a (Dest.Null)
 convertExpression (Src.App a ident exprs) =
   Dest.Application a (convertIdent ident) (map convertExpression exprs)
 convertExpression (Src.String a value) = 
   Dest.Value a (Dest.StringValue value)
+convertExpression (Src.NewObject a _type) =
+  Dest.NewObject a (convertType _type)
+convertExpression (Src.NewArray a _type expression) =
+  Dest.NewArray a (convertType _type) (convertExpression expression)
 convertExpression (Src.Neg a expr) = 
   Dest.Neg a (convertExpression expr)
 convertExpression (Src.Not a expr) = 

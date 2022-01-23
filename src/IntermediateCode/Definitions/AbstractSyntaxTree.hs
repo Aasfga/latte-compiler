@@ -11,7 +11,14 @@ data Program' a = Program a [GlobalSymbol' a]
   deriving (Eq, Ord, Show, Read)
 
 type GlobalSymbol = GlobalSymbol' Position
-data GlobalSymbol' a = Function a Type Ident [Argument] (Block' a)
+data GlobalSymbol' a 
+  = Function a Type Ident [Argument] (Block' a)
+  | Class a Ident [ClassMember' a]
+  deriving (Eq, Ord, Show, Read)
+
+type ClassMember = ClassMember' Position
+data ClassMember' a
+  = AttributeDefinition a Type Ident
   deriving (Eq, Ord, Show, Read)
 
 type Block = Block' Position
@@ -23,14 +30,15 @@ data Statement' a
     = Empty a
     | InnerBlock a (Block' a)
     | Declaration a Type [Declaration' a]
-    | Assigment a Ident (Expression' a)
-    | Increment a Ident
-    | Decrement a Ident
+    | Assigment a (LValue' a) (Expression' a)
+    | Increment a (LValue' a)
+    | Decrement a (LValue' a)
     | Return a (Expression' a)
     | VoidReturn a
     | If a (Expression' a) (Statement' a)
     | IfElse a (Expression' a) (Statement' a) (Statement' a)
     | While a (Expression' a) (Statement' a)
+    | ForEach a Type Ident (Expression' a) (Statement' a)
     | Expression a (Expression' a)
   deriving (Eq, Ord, Show, Read)
 
@@ -38,9 +46,19 @@ type Declaration = Declaration' Position
 data Declaration' a = NoInit a Ident | Init a Ident (Expression' a)
   deriving (Eq, Ord, Show, Read)
 
+type LValue = LValue' Position
+data LValue' a
+  = Variable a Ident
+  | ArrayAccess a (Expression' a) (Expression' a)
+  | Attribute a (Expression' a) Ident
+  deriving (Eq, Ord, Show, Read)
+
 type Expression = Expression' Position
 data Expression' a
-    = Variable a Ident
+    = LValue a (LValue' a)
+    | NewObject a Type
+    | NewArray a Type (Expression' a)
+    | Cast a Type (Expression' a)
     | Value a Value
     | Application a Ident [Expression' a]
     | Neg a (Expression' a)
@@ -53,6 +71,7 @@ data Value
   = IntegerValue Integer
   | BoolValue Bool
   | StringValue String
+  | Null
   deriving (Eq, Ord, Show, Read)
 -- 
 -- Instances
@@ -62,6 +81,10 @@ instance Functor Program' where
 
 instance Functor GlobalSymbol' where
   fmap f (Function a _type ident arguments block) = Function (f a) _type ident arguments (fmap f block)
+  fmap f (Class a ident members) = Class (f a) ident $ map (fmap f) members
+
+instance Functor ClassMember' where
+  fmap f (AttributeDefinition a _type ident) = AttributeDefinition (f a) _type ident
 
 instance Functor Block' where
   fmap f (Block a statements) = Block (f a) (map (fmap f) statements)
@@ -71,14 +94,15 @@ instance Functor Statement' where
     Empty a -> Empty (f a)
     InnerBlock a block -> InnerBlock (f a) (fmap f block)
     Declaration a _type declarations -> Declaration (f a) _type (map (fmap f) declarations)
-    Assigment a ident expr -> Assigment (f a) ident (fmap f expr)
-    Increment a ident -> Increment (f a) ident
-    Decrement a ident -> Decrement (f a) ident
+    Assigment a lvalue expr -> Assigment (f a) (fmap f lvalue) (fmap f expr)
+    Increment a lvalue -> Increment (f a) (fmap f lvalue)
+    Decrement a lvalue -> Decrement (f a) (fmap f lvalue)
     Return a expr -> Return (f a) (fmap f expr)
     VoidReturn a -> VoidReturn (f a)
     If a expr statement -> If (f a) (fmap f expr) (fmap f statement)
     IfElse a expr first second -> IfElse (f a) (fmap f expr) (fmap f first) (fmap f second)
     While a expr statement -> While (f a) (fmap f expr) (fmap f statement)
+    ForEach a _type ident expr statement -> ForEach (f a) _type ident (fmap f expr) (fmap f statement)
     Expression a expr -> Expression (f a) (fmap f expr)
 
 instance Functor Declaration' where
@@ -86,9 +110,17 @@ instance Functor Declaration' where
         NoInit a ident -> NoInit (f a) ident
         Init a ident expr -> Init (f a) ident (fmap f expr)
 
+instance Functor LValue' where
+  fmap f (Variable a ident) = Variable (f a) ident
+  fmap f (ArrayAccess a array index) = ArrayAccess (f a) (fmap f array) (fmap f index)
+  fmap f (Attribute a object ident) = Attribute (f a) (fmap f object) ident
+
 instance Functor Expression' where
     fmap f x = case x of
-        Variable a ident -> Variable (f a) ident
+        LValue a lvalue -> LValue (f a) (fmap f lvalue)
+        NewObject a _type -> NewObject (f a) _type
+        NewArray a _type index -> NewArray (f a) _type (fmap f index)
+        Cast a _type expression -> Cast (f a) _type (fmap f expression)
         Value a value -> Value (f a) value
         Application a ident exprs -> Application (f a) ident (map (fmap f) exprs)
         Neg a expr -> Neg (f a) (fmap f expr)
@@ -101,6 +133,7 @@ instance HasPosition Program where
 
 instance HasPosition GlobalSymbol where
   getPosition (Function p _ _ _ _) = p
+  getPosition (Class p _ _) = p
 
 instance HasPosition Block where
   getPosition (Block p _) = p
@@ -118,6 +151,7 @@ instance HasPosition Statement where
     If p _ _ -> p
     IfElse p _ _ _ -> p
     While p _ _ -> p
+    ForEach p _ _ _ _ -> p
     Expression p _ -> p
 
 instance HasPosition Declaration where
@@ -125,9 +159,17 @@ instance HasPosition Declaration where
         NoInit p _ -> p
         Init p _ _ -> p
 
+instance HasPosition LValue where
+  getPosition (Variable p _) = p
+  getPosition (ArrayAccess p _ _) = p
+  getPosition (Attribute p _ _) = p
+
 instance HasPosition Expression where
     getPosition expression = case expression of
-        Variable p _ -> p
+        LValue p _ -> p
+        NewObject p _ -> p
+        NewArray p _ _ -> p
+        Cast p _ _ -> p
         Value p _ -> p
         Application p _ _ -> p
         Neg p _ -> p
@@ -137,6 +179,7 @@ instance HasPosition Expression where
 
 instance HasIdent GlobalSymbol where 
   getIdent (Function _ _ ident _ _) = ident
+  getIdent (Class _ ident _) = ident
 -- 
 -- Patterns
 -- 
@@ -144,10 +187,13 @@ pattern DummyBlock :: Statement -> Block
 pattern DummyBlock statement = Block NoPosition [statement]
 
 pattern DummyAssigment :: Ident -> Expression -> Statement
-pattern DummyAssigment ident expression = Assigment NoPosition ident expression
+pattern DummyAssigment ident expression = Assigment NoPosition (Variable NoPosition ident) expression
 
 pattern DummyBool :: Bool -> Expression
 pattern DummyBool x = Value NoPosition (BoolValue x)
+
+pattern DummyInt :: Integer -> Expression
+pattern DummyInt x = Value NoPosition (IntegerValue x)
 
 pattern DummyIfElse :: Expression -> Statement -> Statement -> Statement
 pattern DummyIfElse expression first second = IfElse NoPosition expression first second

@@ -50,9 +50,9 @@ separator  Type "," ;
 
 -- LValues
 
-LVariable.              LValue ::= Ident ;
-LArrayAccess.           LValue ::= Expr7 "[" Expr "]" ;
-LAttribute.             LValue ::= Expr7 "." Ident ;
+Variable.              LValue ::= Ident ;
+ArrayAccess.           LValue ::= Expr7 "[" Expr "]" ;
+Attribute.             LValue ::= Expr7 "." Ident ;
 
 -- Expressions
 

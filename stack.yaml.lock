@@ -60,6 +60,13 @@ packages:
       sha256: 0d4a0d442f7f25d35e88f5f30099763c512e3c8fefe2ebccebd82cead4000021
   original:
     hackage: optparse-applicative-0.16.1.0
+- completed:
+    hackage: bimap-0.4.0@sha256:c59d587b56b575c299ba0c2fff44e630991a120a167de5a19cd7a81320f63c84,1717
+    pantry-tree:
+      size: 414
+      sha256: f88d0c994fdb5fe7780e4a1ed722a303520abebc12151451b9b0791551725d5d
+  original:
+    hackage: bimap-0.4.0
 snapshots:
 - completed:
     size: 532386

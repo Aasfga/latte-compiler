@@ -32,6 +32,8 @@ data FinalOperation
 data QuadrupleOperation
   = ArgumentInit Int
   | Assigment QuadrupleLocation
+  | PointerStore QuadrupleLocation QuadrupleLocation QuadrupleLocation
+  | PointerGet QuadrupleLocation QuadrupleLocation
   | IntegerAdd QuadrupleLocation QuadrupleLocation
   | IntegerSub QuadrupleLocation QuadrupleLocation
   | IntegerMul QuadrupleLocation QuadrupleLocation
@@ -101,6 +103,8 @@ instance Show QuadrupleLocation where
 instance Show QuadrupleOperation where
   show (ArgumentInit ident) = "argInit " ++ show ident
   show (Assigment l) = show l
+  show (PointerStore pointer index value) = "pointerStore " ++ show pointer ++ "[" ++ show index ++ "], " ++ show value
+  show (PointerGet pointer index) = "pointerGet " ++ show pointer ++ "[" ++ show index ++ "]"
   show (IntegerAdd first second) = "iadd " ++ show first ++ ", " ++ show second
   show (IntegerSub first second) = "isub " ++ show first ++ ", " ++ show second
   show (IntegerMul first second) = "imul " ++ show first ++ ", " ++ show second
@@ -203,6 +207,8 @@ getRegister _ = Nothing
 getRegisters :: QuadrupleOperation -> [TemporaryRegister]
 getRegisters (ArgumentInit _) = []
 getRegisters (Assigment l) = catMaybes $ map getRegister [l]
+getRegisters (PointerStore pointer index value) = catMaybes $ map getRegister [pointer, index, value]
+getRegisters (PointerGet pointer index) = catMaybes $ map getRegister [pointer, index]
 getRegisters (IntegerAdd first second) = catMaybes $ map getRegister [first, second] 
 getRegisters (IntegerSub first second) = catMaybes $ map getRegister [first, second]
 getRegisters (IntegerMul first second) = catMaybes $ map getRegister [first, second]

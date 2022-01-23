@@ -16,6 +16,29 @@ import Debug.Trace
 -- 
 -- Global context functions
 --
+getClass :: Ident -> C.GlobalTransformer C.ClassDefinition
+getClass classIdent = do
+  maybeClass <- Map.lookup classIdent . view C.classes <$> get
+  case maybeClass of
+    Nothing -> throwErrorGlobal $ SymbolNotFound classIdent
+    Just classDefinition -> return classDefinition
+
+getClassMemberIndex :: Ident -> Ident -> C.GlobalTransformer Index
+getClassMemberIndex classIdent memberIdent = do
+  classDefinition <- getClass classIdent
+  let maybeIndex = Map.lookup memberIdent $ view C.attributes classDefinition
+  case maybeIndex of 
+    Nothing -> throwErrorGlobal $ ClassMemberNotFound classIdent memberIdent
+    Just index -> return index
+
+getClassMemberType :: Ident -> Ident -> C.GlobalTransformer Type
+getClassMemberType classIdent memberIdent = do
+  classDefinition <- getClass classIdent
+  let maybeType = Map.lookup memberIdent $ view C.attributeTypes  classDefinition
+  case maybeType of 
+    Nothing -> throwErrorGlobal $ ClassMemberNotFound classIdent memberIdent
+    Just _type -> return _type
+
 throwErrorGlobal :: LatteError -> C.GlobalTransformer a
 throwErrorGlobal latteError = do
   position <- view C.position <$> get
@@ -35,15 +58,22 @@ defineGlobalSymbols :: [AST.GlobalSymbol] -> C.GlobalTransformer ()
 defineGlobalSymbols globalSymbols = do
   mapM_ newGlobalSymbol libraryFunctions 
   mapM_ newGlobalSymbol globalSymbols
+  assertCorrectTypesInGlobalSymbols
 
 newGlobalSymbol :: AST.GlobalSymbol -> C.GlobalTransformer ()
 newGlobalSymbol (AST.Function _ retType ident args _) = do
   assertCanDefineFunction ident
   let newFunction = Q.emptyFunctionDefinition ident retType args
   modify $ over (C.quadruples . Q.functions) (Map.insert ident newFunction)
+newGlobalSymbol (AST.Class _ ident members) = do
+  assertCanDefineClass ident
+  let returnType = Object ident
+  let constructorIdent = getConstructorIdent ident
+  let constructor = Q.emptyFunctionDefinition constructorIdent returnType []
+  modify $ over (C.quadruples . Q.functions) (Map.insert ident constructor)
 -- 
 -- Function context functions
--- 
+--
 savePosition :: Position -> C.GlobalTransformer ()
 savePosition position = modify $ set C.position position
 
@@ -99,9 +129,44 @@ removeScope = do
   currentScope <- getCurrentScope
   mapM_ removeVariable currentScope
   modify $ over C.scopes tail
+
+isLocationAnArray :: Q.QuadrupleLocation -> C.FunctionTransformer Bool
+isLocationAnArray location = do
+  locationType <- getLocationType location
+  case locationType of
+    (Array _) -> return True
+    _ -> return False
+    
+isLocationAnObject :: Q.QuadrupleLocation -> C.FunctionTransformer Bool
+isLocationAnObject location = do
+  locationType <- getLocationType location
+  case locationType of
+    (Object _) -> return True
+    _ -> return False
 -- 
 -- Getters, Setters and Modifiers
 --
+getArrayValueType :: Q.QuadrupleLocation -> C.FunctionTransformer Type
+getArrayValueType location = do
+  locationType <- getLocationType location
+  case locationType of 
+    Array _type -> return _type
+    _ -> throwErrorFunction $ NotAnArray locationType
+
+getMemberIndex :: Q.QuadrupleLocation -> Ident -> C.FunctionTransformer Index
+getMemberIndex location memberIdent = do
+  locationType <- getLocationType location
+  case locationType of
+    Object classIdent -> lift $ getClassMemberIndex classIdent memberIdent
+    _ -> throwErrorFunction $ NotAnObject locationType
+
+getMemberType :: Q.QuadrupleLocation -> Ident -> C.FunctionTransformer Type
+getMemberType location memberIdent = do
+  locationType <- getLocationType location
+  case locationType of
+    Object classIdent -> lift $ getClassMemberType classIdent memberIdent
+    _ -> throwErrorFunction $ NotAnObject locationType 
+
 getLocationType :: Q.QuadrupleLocation -> C.FunctionTransformer Type
 getLocationType (Q.ConstInt _) = return Int
 getLocationType (Q.ConstBool _) = return Bool
@@ -186,8 +251,13 @@ assertMainExists = do
 
 assertCanDefineFunction :: Ident -> C.GlobalTransformer ()
 assertCanDefineFunction ident = do
-  canDefine <- not . Map.member ident . view (C.quadruples .Q.functions) <$> get
+  canDefine <- not . Map.member ident . view (C.quadruples . Q.functions) <$> get
   unless canDefine (throwError $ (SymbolInScope ident, NoPosition))
+
+assertCanDefineClass :: Ident -> C.GlobalTransformer ()
+assertCanDefineClass ident = do
+  canDefine <- not . Map.member ident . view C.classes <$> get
+  unless canDefine $ throwError $ (SymbolInScope ident, NoPosition)
 
 assertNotInQuadrupleBlock :: C.FunctionTransformer ()
 assertNotInQuadrupleBlock = do
@@ -204,6 +274,36 @@ assertReturnTypeIsCorrect actualType = do
   expectedType <- gets $ view C.returnType
   function <- gets $ view C.functionIdent
   unless (actualType == expectedType) (throwErrorFunction $ TypeMissmatchReturn function expectedType actualType)
+
+assertIsArray :: Q.QuadrupleLocation -> C.FunctionTransformer ()
+assertIsArray location = do
+  locationType <- getLocationType location
+  case locationType of
+    Array _ -> return ()
+    _ -> throwErrorFunction $ NotAnArray locationType
+
+assertArrayValueType :: Q.QuadrupleLocation -> Type -> C.FunctionTransformer ()
+assertArrayValueType location expectedType = do
+  locationType <- getLocationType location
+  let latteError = TypeMissmatch expectedType locationType
+  case locationType of
+    Array actualType -> unless (actualType == expectedType) $ throwErrorFunction latteError
+    _ -> throwErrorFunction latteError
+
+assertIsObject :: Q.QuadrupleLocation -> C.FunctionTransformer ()
+assertIsObject location = do
+  locationType <- getLocationType location
+  case locationType of
+    Object _ -> return ()
+    _ -> throwErrorFunction $ NotAnObject locationType
+
+assertObjectType :: Q.QuadrupleLocation -> Ident -> C.FunctionTransformer ()
+assertObjectType location requiredIdent = do 
+  locationType <- getLocationType location
+  let latteError = TypeMissmatch (Object requiredIdent) locationType
+  case locationType of
+    Object actualIdent -> unless (actualIdent == requiredIdent) $ throwErrorFunction latteError
+    _ -> throwErrorFunction latteError
 
 assertLocationType :: Q.QuadrupleLocation -> Type -> C.FunctionTransformer ()
 assertLocationType location expectedType = do
@@ -248,8 +348,35 @@ assertFinalBlocksHaveReturn = do
   case returnType of
     Void -> return ()
     _ -> do
-      -- assertFinalBlocksHaveReturnPath
       assertFinalBlocksHaveReturnFinalBlocks
+
+assertIsCorrectType :: Type -> C.GlobalTransformer ()
+assertIsCorrectType (Object ident) = do
+  isDefined <- Map.member ident . view C.classes <$> get
+  unless (isDefined) $ throwErrorGlobal $ SymbolNotFound "ident"
+assertIsCorrectType _ = return ()
+
+assertCorrectTypesInFunction :: Q.FunctionDefinition -> C.GlobalTransformer ()
+assertCorrectTypesInFunction functionDefinition = do
+  let types = map getType $ view Q.arguments functionDefinition
+  mapM_ assertIsCorrectType types
+
+assertCorrectTypesInClass :: C.ClassDefinition -> C.GlobalTransformer ()
+assertCorrectTypesInClass classDefinition = do
+  let types = Map.elems $ view C.attributeTypes classDefinition
+  mapM_ assertIsCorrectType types
+
+assertCorrectTypesInGlobalSymbols :: C.GlobalTransformer ()
+assertCorrectTypesInGlobalSymbols = do
+   Map.elems . view (C.quadruples . Q.functions) <$> get >>= mapM_ assertCorrectTypesInFunction
+   Map.elems . view C.classes <$> get >>= mapM_ assertCorrectTypesInClass 
+
+assertClassExists :: Ident -> C.GlobalTransformer ()
+assertClassExists classIdent = do
+  isMember <- Map.member classIdent . view C.classes <$> get
+  case isMember of
+    True -> return ()
+    False -> throwErrorGlobal $ SymbolNotFound classIdent
 -- 
 -- Other
 -- 
@@ -269,10 +396,21 @@ libraryFunctions = let
     (AST.Function position Void "printInt" [createArg Int] emptyBlock),
     (AST.Function position Void "printString" [createArg String] emptyBlock),
     (AST.Function position Void "error" [] emptyBlock), 
-    (AST.Function position (Int) "readInt" [] emptyBlock),
-    (AST.Function position (String) "readString" [] emptyBlock)
+    (AST.Function position Int "readInt" [] emptyBlock),
+    (AST.Function position String "readString" [] emptyBlock),
+    (AST.Function position Int "__createObject" [createArg Int] emptyBlock),
+    (AST.Function position Int "__createArray" [createArg Int] emptyBlock)
   ]
 
 singletonIfEmpty :: [a] -> a -> [a]
 singletonIfEmpty [] x = [x]
 singletonIfEmpty list _ = list
+
+getConstructorIdent :: Ident -> Ident
+getConstructorIdent ident = "__constructor_" ++ ident
+
+constructorCode :: Int -> [Q.Quadruple]
+constructorCode size = [
+    Q.QuadrupleOperation 0 $ Q.CallFunction "__createObject" [Q.ConstInt size],
+    Q.QuadrupleOperation 1 $ Q.ReturnValue $ Q.Register 0
+  ]

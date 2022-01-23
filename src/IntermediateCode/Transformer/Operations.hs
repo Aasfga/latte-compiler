@@ -67,6 +67,68 @@ argumentInit index (Argument _type ident) = do
   location <- addQuadrupleOperation operation _type
   newVariable _type ident location
 
+cast :: Type -> Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
+cast _type location = do
+  let operation = Q.Assigment location
+  addQuadrupleOperation operation _type
+
+createObject :: Type -> C.FunctionTransformer Q.QuadrupleLocation
+createObject (Object classIdent) = do
+  lift $ assertClassExists classIdent
+  let constructorIdent = getConstructorIdent classIdent
+  callFunction constructorIdent []
+createObject _type = throwErrorFunction $ NotAClass _type
+
+objectStore :: Q.QuadrupleLocation -> Ident -> Q.QuadrupleLocation -> C.FunctionTransformer ()
+objectStore object memberIdent value = do
+  valueType <- getLocationType value
+  memberType <- getMemberType object memberIdent
+  unless (memberType == valueType) $ throwErrorFunction $ TypeMissmatch memberType valueType
+  memberIndex <- getMemberIndex object memberIdent
+  pointerStore object (Q.ConstInt memberIndex) value
+
+objectGet :: Q.QuadrupleLocation -> Ident -> C.FunctionTransformer Q.QuadrupleLocation
+objectGet object memberIdent = do
+  memberIndex <- getMemberIndex object memberIdent
+  memberType <- getMemberType object memberIdent
+  pointerGet object (Q.ConstInt memberIndex) memberType
+
+createArray :: Type -> Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
+createArray _type index = do
+  assertLocationType index Int
+  let operation = Q.CallFunction "__createArray" [index]
+  addQuadrupleOperation operation $ Array _type
+
+arrayLength :: Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
+arrayLength array = do
+  assertIsArray array
+  pointerGet array (Q.ConstInt 1) Int
+
+arrayGet :: Q.QuadrupleLocation -> Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
+arrayGet array index = do
+  valueType <- getArrayValueType array
+  assertLocationType index Int
+  actualArrayLocation <- pointerGet array (Q.ConstInt 0) Int
+  pointerGet actualArrayLocation index valueType
+
+arrayStore :: Q.QuadrupleLocation -> Q.QuadrupleLocation -> Q.QuadrupleLocation -> C.FunctionTransformer ()
+arrayStore array index value = do
+  valueType <- getLocationType value
+  assertArrayValueType array valueType
+  actualArrayLocation <- pointerGet array (Q.ConstInt 0) Int
+  pointerStore actualArrayLocation index value
+
+pointerStore :: Q.QuadrupleLocation -> Q.QuadrupleLocation -> Q.QuadrupleLocation -> C.FunctionTransformer ()
+pointerStore pointer index value = do
+  assertLocationType index Int
+  let operation = Q.PointerStore pointer index value
+  void $ addQuadrupleOperation operation Void
+
+pointerGet :: Q.QuadrupleLocation -> Q.QuadrupleLocation -> Type -> C.FunctionTransformer Q.QuadrupleLocation
+pointerGet pointer index _type = do
+  let operation = Q.PointerGet pointer index
+  addQuadrupleOperation operation _type
+
 integerAdd :: Q.QuadrupleLocation -> Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
 integerAdd (Q.ConstInt x) (Q.ConstInt y) = return $ Q.ConstInt (x + y)
 integerAdd first second = do

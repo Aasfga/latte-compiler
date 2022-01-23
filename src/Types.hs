@@ -19,6 +19,8 @@ data Type
   | String 
   | Bool 
   | Void 
+  | Object Ident
+  | Array Type
   | Function Type [Type]
   deriving (Eq, Ord, Read)
 
@@ -65,6 +67,8 @@ instance Show Type where
   show String = "string"
   show Bool = "bool"
   show Void = "void"
+  show (Object ident) = ident
+  show (Array _type) = show _type ++ "[]"
   show (Function _type argTypes) = let
       parsedArgTypes = intercalate " -> " $ map show argTypes
       parsedType = show _type

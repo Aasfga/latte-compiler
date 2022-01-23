@@ -8,6 +8,10 @@ data LatteError
   | InternalCompilerError String 
   -- Analyzer errors
   | SymbolNotFound Ident
+  | NotAnArray Type
+  | NotAnObject Type
+  | NotAClass Type
+  | ClassMemberNotFound Ident Ident
   | SymbolInScope Ident
   | FunctionNotFound Ident
   | TypeMissmatchApplication Ident [Type] [Type] 
@@ -15,6 +19,7 @@ data LatteError
   | TypeMissmatchBinaryOperator Type Type Operation
   | TypeMissmatchCompare Type Type
   | TypeMissmatchAssigment Type Type
+  | TypeMissmatch Type Type
   | TypeMissmatchIf Type
   | TypeMissmatchReturn Ident Type Type
   | MissingReturn Ident Type
@@ -30,6 +35,11 @@ instance Show LatteError where
     "Parser error." ++ show msg
   show (SymbolNotFound ident) = 
     "Symbol " ++ ident ++ " not found"
+  show (NotAnArray _type) = "Value is not an array. " ++ show _type
+  show (NotAnObject _type) = show _type ++ " is not an object"
+  show (NotAClass _type) = show _type ++ " is not a class type"
+  show (ClassMemberNotFound classIdent memberIdent) = 
+    "Member " ++ memberIdent ++ " in class " ++ classIdent ++ " not found"
   show (SymbolInScope ident) = 
     "Symbol '" ++ ident ++ "' is already defined"
   show (FunctionNotFound ident) = 
@@ -52,6 +62,9 @@ instance Show LatteError where
   show (TypeMissmatchAssigment required found) = 
     "Incompatible types: " ++ 
     show found ++ " value cannot be assigned to " ++ show required ++ " variable"
+  show (TypeMissmatch required found) = 
+    "Incompatible array types. " ++
+    show found ++ " is different than " ++ show required
   show (TypeMissmatchIf _type) = 
     "Not able to determine bool value from value of type " ++ show _type
   show (TypeMissmatchReturn ident required found) = 

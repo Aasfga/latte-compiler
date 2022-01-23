@@ -2,15 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern int debugGcsePrintInt(int x)
+#define integer long long int
+
+extern int debugGcsePrintInt(integer x)
 {
-	printf("%d\n", x);
+	printf("%lld\n", x);
 	return x;
 }
 
-extern void printInt(int v)
+extern void printInt(integer v)
 {
-	printf("%d\n", v);
+	printf("%lld\n", v);
 }
 
 extern void printString(char* v)
@@ -25,9 +27,23 @@ extern void error()
 
 extern int readInt()
 {
-	int a;
-	scanf("%d", &a);
+	integer a;
+	scanf("%lld", &a);
 	return a;
+}
+
+extern __createObject(integer size) 
+{
+	return calloc(size, sizeof(integer));
+}
+
+extern integer* __createArray(integer size)
+{
+	integer* arrayObject = calloc(2, sizeof(integer));	
+	integer* actualArray = calloc(size, sizeof(integer));
+	arrayObject[0] = (integer) actualArray;
+	arrayObject[1] = size;
+	return arrayObject;
 }
 
 extern int __stringCompare(char *first, char *second)

@@ -36,7 +36,14 @@ transformBinaryOperation String Plus = stringConcat
 transformBinaryOperation _type op = (\_ _ -> throwErrorFunction $ TypeMissmatchBinaryOperator _type _type op)
 
 transformExpression' :: AST.Expression -> C.FunctionTransformer Q.QuadrupleLocation 
-transformExpression' (AST.Variable _ ident) = getLocation ident
+transformExpression' (AST.LValue _ lvalue) = transformGetLValue lvalue
+transformExpression' (AST.NewObject _ _type) = createObject _type
+transformExpression' (AST.NewArray _ _type index) = do
+  indexLocation <- transformExpression index
+  createArray _type indexLocation
+transformExpression' (AST.Cast _ _type expression) = do
+  expressionLocation <- transformExpression expression
+  cast _type expressionLocation
 transformExpression' (AST.Value _ (AST.IntegerValue x)) = do 
   let minValue = toInteger (minBound :: Int)
   let maxValue = toInteger (maxBound :: Int)
@@ -44,6 +51,7 @@ transformExpression' (AST.Value _ (AST.IntegerValue x)) = do
   return $ Q.ConstInt $ fromIntegral x
 transformExpression' (AST.Value _ (AST.BoolValue x)) = return $ Q.ConstBool x
 transformExpression' (AST.Value _ (AST.StringValue x)) = return $ Q.ConstString x
+transformExpression' (AST.Value _ (AST.Null)) = return $ Q.ConstInt 0
 transformExpression' (AST.Application _ ident expressions) = do
   locations <- mapM transformExpression expressions
   callFunction ident locations
@@ -132,6 +140,34 @@ defaultStatementReturn = do
   blockNumber <- getCurrentBlockNumber
   return $ Just ([blockNumber], isAlive)
 
+transformGetLValue :: AST.LValue -> C.FunctionTransformer Q.QuadrupleLocation
+transformGetLValue (AST.Variable p ident) = do
+  lift $ savePosition p
+  getLocation ident
+transformGetLValue (AST.ArrayAccess p array index) = do
+  arrayLocation <- transformExpression array
+  indexLocation <- transformExpression index
+  arrayGet arrayLocation indexLocation
+transformGetLValue (AST.Attribute p object memberIdent) = do
+  objectLocation <- transformExpression object
+  isArray <- isLocationAnArray objectLocation
+  case isArray && memberIdent == "length" of
+    True -> arrayLength objectLocation
+    False -> objectGet objectLocation memberIdent
+
+transformStoreLValue :: AST.LValue -> Q.QuadrupleLocation -> C.FunctionTransformer ()
+transformStoreLValue (AST.Variable _ ident) value = do
+  locationType <- getLocationType value
+  assertVariableType ident locationType
+  setLocation ident value
+transformStoreLValue (AST.ArrayAccess _ array index) value = do
+  arrayLocation <- transformExpression array
+  indexLocation <- transformExpression index
+  arrayStore arrayLocation indexLocation value 
+transformStoreLValue (AST.Attribute _ object ident) value = do
+  objectLocation <- transformExpression object
+  objectStore objectLocation ident value
+
 transformStatement' :: AST.Statement -> C.FunctionTransformer (Maybe StatementReturn)
 transformStatement' (AST.Empty _) = defaultStatementReturn
 transformStatement' (AST.InnerBlock _ block) = do
@@ -144,23 +180,19 @@ transformStatement' (AST.InnerBlock _ block) = do
 transformStatement' (AST.Declaration _ _type declarations) = do
   mapM_ (transformDeclaration _type) declarations
   defaultStatementReturn
-transformStatement' (AST.Assigment _ ident expression) = do
+transformStatement' (AST.Assigment _ lvalue expression) = do
   expressionLocation <- transformExpression expression
-  expressionType <- getLocationType expressionLocation
-  assertVariableType ident expressionType
-  setLocation ident expressionLocation
+  transformStoreLValue lvalue expressionLocation
   defaultStatementReturn
-transformStatement' (AST.Increment _ ident) = do
-  assertVariableType ident Int
-  location <- getLocation ident
-  newLocation <- integerAdd location (Q.ConstInt 1)
-  setLocation ident newLocation
+transformStatement' (AST.Increment _ lvalue) = do
+  lvalueLocation <- transformGetLValue lvalue
+  newLocation <- integerAdd lvalueLocation (Q.ConstInt 1)
+  transformStoreLValue lvalue newLocation
   defaultStatementReturn
-transformStatement' (AST.Decrement _ ident) = do
-  assertVariableType ident Int
-  location <- getLocation ident
-  newLocation <- integerSub location (Q.ConstInt 1)
-  setLocation ident newLocation
+transformStatement' (AST.Decrement _ lvalue) = do
+  lvalueLocation <- transformGetLValue lvalue
+  newLocation <- integerSub lvalueLocation (Q.ConstInt 1)
+  transformStoreLValue lvalue newLocation
   defaultStatementReturn
 transformStatement' (AST.Return _ expression) = do
   expressionLocation <- transformExpression expression
@@ -229,6 +261,24 @@ transformStatement' (AST.While _ expression statement) = do
   case maybeValue of
     Just True -> return Nothing
     _ -> return $ Just ([finalConditionBlockNumber], currentAlive)
+transformStatement' (AST.ForEach _ _type ident expression statement) = do
+  let p = NoPosition
+  indexIdent <- getNewDummyIdent
+  sizeIdent <- getNewDummyIdent
+  let indexVariable = AST.Variable p indexIdent
+  let sizeVariable = AST.Variable p sizeIdent
+  let indexAssigment = AST.Assigment p indexVariable $ AST.DummyInt 0
+  let attribute = AST.LValue p $ AST.Attribute p expression "length"
+  let sizeAssigment = AST.Assigment p sizeVariable attribute
+  let compare = AST.Compare p (AST.LValue p indexVariable) LE (AST.LValue p sizeVariable)
+  let getItemExpression = AST.LValue p $ AST.ArrayAccess p expression (AST.LValue p indexVariable)
+  let declaration = AST.Declaration p _type [AST.Init p ident getItemExpression]
+  let incrementation = AST.Increment p indexVariable
+  let innerBlock = AST.InnerBlock p $ AST.Block p [declaration, statement, incrementation]
+  let while = AST.While p compare innerBlock
+  let outerBlock = AST.InnerBlock p $ AST.Block p [indexAssigment, sizeAssigment, while]
+  transformStatement' outerBlock
+
 transformStatement' (AST.Expression _ expression) = do
   _ <- transformExpression expression
   defaultStatementReturn
@@ -300,6 +350,13 @@ transformGlobalSymbolToQuadruples :: AST.GlobalSymbol -> C.GlobalTransformer ()
 transformGlobalSymbolToQuadruples (AST.Function _ returnType functionName arguments block) = do
   (functionDefinition,_) <- runFunctionTransformer returnType functionName arguments block
   modify $ over (C.quadruples . Q.functions) (Map.insert functionName functionDefinition)
+transformGlobalSymbolToQuadruples (AST.Class _ ident members) = do
+  let constructorIdent = getConstructorIdent ident
+  let returnType = Object ident
+  let code = constructorCode $ length members
+  let block = Q.Block 0 Map.empty Set.empty Map.empty [] [] True code True Q.Return
+  let constructor = Q.FunctionDefinition constructorIdent returnType [] 3 (Map.singleton 0 block)
+  modify $ over (C.quadruples . Q.functions) (Map.insert constructorIdent constructor)
 
 transformProgram :: AST.Program -> C.GlobalTransformer Q.Quadruples
 transformProgram (AST.Program _ globalSymbols) = do
