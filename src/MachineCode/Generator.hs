@@ -199,6 +199,9 @@ generateHeader = do
   emitExtern "__stringConcat"
   emitExtern "__stringCompare"
   emitExtern "debugGcsePrintInt"
+  emitExtern "__pointerCompare"
+  emitExtern "__createArray"
+  emitExtern "__createObject"
   emitSection Text
 
 generateStrings :: C.GlobalGenerator ()

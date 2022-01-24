@@ -136,7 +136,7 @@ instance Show FunctionDefinition where
       __functionIdent = view functionIdent functionDefinition
       __blocks = Map.elems $ view blocks functionDefinition
       blockNumbers = map (view blockNumber) __blocks
-      blocksLabels = map (\bn -> __functionIdent ++ show bn ++ ":") blockNumbers
+      blocksLabels = map (\bn -> __functionIdent ++ "_" ++ show bn ++ ":") blockNumbers
       blocksCode = map show __blocks
     in
       unlines $ map (\(l, c) -> l ++ "\n" ++ c) $ zip blocksLabels blocksCode
@@ -177,7 +177,7 @@ instance DebugShow FunctionDefinition where
       __functionIdent = view functionIdent functionDefinition
       __blocks = Map.elems $ view blocks functionDefinition
       blockNumbers = map (view blockNumber) __blocks
-      blocksLabels = map (\bn -> __functionIdent ++ show bn ++ ":") blockNumbers
+      blocksLabels = map (\bn -> __functionIdent ++ "_" ++ show bn ++ ":") blockNumbers
       blocksCode = map debugShow __blocks
     in
       unlines $ map (\(l, c) -> l ++ "\n" ++ c) $ zip blocksLabels blocksCode

@@ -77,8 +77,10 @@ newGlobalSymbol (AST.Class _ ident members) = do
   assertCanDefineClass ident
   let returnType = Object ident
   let constructorIdent = getConstructorIdent ident
+  let emptyClassDefinition = C.ClassDefinition Map.empty Map.empty
   let constructor = Q.emptyFunctionDefinition constructorIdent returnType []
-  modify $ over (C.quadruples . Q.functions) (Map.insert ident constructor)
+  modify $ over (C.quadruples . Q.functions) (Map.insert constructorIdent constructor)
+  modify $ over C.classes (Map.insert ident emptyClassDefinition)
   mapM_ (addClassMember ident) $ zip [0..] members
 -- 
 -- Function context functions
@@ -317,7 +319,12 @@ assertObjectType location requiredIdent = do
 assertLocationType :: Q.QuadrupleLocation -> Type -> C.FunctionTransformer ()
 assertLocationType location expectedType = do
   actualType <- getLocationType location
-  unless (expectedType == actualType) $ throwErrorFunction $ TypeMissmatchAssigment expectedType actualType
+  case (actualType, expectedType) of
+    (Array _, Int) -> return ()
+    (Object _, Int) -> return ()
+    (Int, Array _) -> return ()
+    (Int, Object _) -> return ()
+    otherwise -> unless (expectedType == actualType) $ throwErrorFunction $ TypeMissmatchAssigment expectedType actualType
 
 assertVariableType :: Ident -> Type -> C.FunctionTransformer ()
 assertVariableType ident actualType = do
@@ -362,7 +369,7 @@ assertFinalBlocksHaveReturn = do
 assertIsCorrectType :: Type -> C.GlobalTransformer ()
 assertIsCorrectType (Object ident) = do
   isDefined <- Map.member ident . view C.classes <$> get
-  unless (isDefined) $ throwErrorGlobal $ SymbolNotFound "ident"
+  unless (traceShowId isDefined) $ throwErrorGlobal $ SymbolNotFound ident
 assertIsCorrectType _ = return ()
 
 assertCorrectTypesInFunction :: Q.FunctionDefinition -> C.GlobalTransformer ()
@@ -389,11 +396,13 @@ assertClassExists classIdent = do
 -- 
 -- Other
 -- 
-getDefaultConstValue :: Type -> C.FunctionTransformer Q.QuadrupleLocation
-getDefaultConstValue Int = return $ Q.ConstInt 0
-getDefaultConstValue String = return $ Q.ConstString ""
-getDefaultConstValue Bool = return $ Q.ConstBool False
-getDefaultConstValue _type = throwErrorFunction $ InternalCompilerError ("No default value for type " ++ show _type)
+getDefaultValue :: Type -> C.FunctionTransformer Q.QuadrupleLocation
+getDefaultValue Int = return $ Q.ConstInt 0
+getDefaultValue String = return $ Q.ConstString ""
+getDefaultValue Bool = return $ Q.ConstBool False
+getDefaultValue (Array _) = return $ Q.ConstInt 0
+getDefaultValue (Object _) = return $ Q.ConstInt 0
+getDefaultValue _type = throwErrorFunction $ InternalCompilerError ("No default value for type " ++ show _type)
 
 libraryFunctions :: [AST.GlobalSymbol]
 libraryFunctions = let 

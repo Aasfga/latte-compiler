@@ -224,6 +224,24 @@ stringCompare first op second = do
   let operation = Q.StringCompare first op second
   addQuadrupleOperation operation Bool
 
+objectCompare :: Q.QuadrupleLocation -> CompareOperation -> Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
+objectCompare first op second = do
+  assertIsObject first
+  assertIsObject second
+  pointerCompare first op second
+
+arrayCompare :: Q.QuadrupleLocation -> CompareOperation -> Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
+arrayCompare first op second = do
+  assertIsArray first 
+  assertIsArray second
+  pointerCompare first op second
+
+pointerCompare :: Q.QuadrupleLocation -> CompareOperation -> Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
+pointerCompare first op second = do
+  let operation = Q.CallFunction "__pointerCompare" [first, second]
+  result <- addQuadrupleOperation operation Int
+  integerCompare result op $ Q.ConstInt 0
+
 boolCompare :: Q.QuadrupleLocation -> CompareOperation -> Q.QuadrupleLocation -> C.FunctionTransformer Q.QuadrupleLocation
 boolCompare (Q.ConstBool x) op (Q.ConstBool y) = return $ Q.ConstBool $ getCompareFunction op x y
 boolCompare first op second = do

@@ -4,6 +4,12 @@
 
 #define integer long long int
 
+struct array
+{
+	integer *actualArray;
+	integer size;
+};
+
 extern int debugGcsePrintInt(integer x)
 {
 	printf("%lld\n", x);
@@ -37,18 +43,22 @@ extern __createObject(integer size)
 	return calloc(size, sizeof(integer));
 }
 
-extern integer* __createArray(integer size)
+extern struct array* __createArray(integer size)
 {
-	integer* arrayObject = calloc(2, sizeof(integer));	
-	integer* actualArray = calloc(size, sizeof(integer));
-	arrayObject[0] = (integer) actualArray;
-	arrayObject[1] = size;
+	struct array* arrayObject = calloc(2, sizeof(struct array));	
+	arrayObject->actualArray = calloc(size, sizeof(integer));
+	arrayObject->size = size;
 	return arrayObject;
 }
 
 extern int __stringCompare(char *first, char *second)
 {
   return strcmp(first, second);
+}
+
+extern int __pointerCompare(integer first, integer second)
+{
+	return first - second;
 }
 
 extern char* __stringConcat(char* first, char* second)

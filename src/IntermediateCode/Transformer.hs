@@ -112,6 +112,8 @@ transformExpression' (AST.Compare _ firstExpression op secondExpression) = do
     (Int, Int) -> integerCompare firstLocation op secondLocation
     (Bool, Bool) -> boolCompare firstLocation op secondLocation
     (String, String) -> stringCompare firstLocation op secondLocation
+    (Array _, Array _) -> arrayCompare firstLocation op secondLocation
+    (Object _, Object _) -> objectCompare firstLocation op secondLocation
     (firstType, secondType) -> throwErrorFunction $ TypeMissmatchCompare firstType secondType
 
 transformExpression :: AST.Expression -> C.FunctionTransformer Q.QuadrupleLocation
@@ -123,7 +125,7 @@ transformExpression expression = do
 transformDeclaration :: Type -> AST.Declaration -> C.FunctionTransformer ()
 transformDeclaration _type (AST.NoInit p ident) = do
   lift $ savePosition p
-  constValue <- getDefaultConstValue _type
+  constValue <- getDefaultValue _type
   newVariable _type ident constValue
 transformDeclaration _type (AST.Init p ident expression) = do
   lift $ savePosition p
@@ -157,8 +159,8 @@ transformGetLValue (AST.Attribute p object memberIdent) = do
 
 transformStoreLValue :: AST.LValue -> Q.QuadrupleLocation -> C.FunctionTransformer ()
 transformStoreLValue (AST.Variable _ ident) value = do
-  locationType <- getLocationType value
-  assertVariableType ident locationType
+  valueType <- getLocationType value
+  assertVariableType ident valueType
   setLocation ident value
 transformStoreLValue (AST.ArrayAccess _ array index) value = do
   arrayLocation <- transformExpression array
@@ -267,16 +269,16 @@ transformStatement' (AST.ForEach _ _type ident expression statement) = do
   sizeIdent <- getNewDummyIdent
   let indexVariable = AST.Variable p indexIdent
   let sizeVariable = AST.Variable p sizeIdent
-  let indexAssigment = AST.Assigment p indexVariable $ AST.DummyInt 0
+  let indexDeclaration = AST.Declaration p Int [AST.Init p indexIdent $ AST.DummyInt 0]
   let attribute = AST.LValue p $ AST.Attribute p expression "length"
-  let sizeAssigment = AST.Assigment p sizeVariable attribute
+  let sizeDeclaration = AST.Declaration p Int [AST.Init p sizeIdent $ attribute]
   let compare = AST.Compare p (AST.LValue p indexVariable) LE (AST.LValue p sizeVariable)
   let getItemExpression = AST.LValue p $ AST.ArrayAccess p expression (AST.LValue p indexVariable)
   let declaration = AST.Declaration p _type [AST.Init p ident getItemExpression]
   let incrementation = AST.Increment p indexVariable
   let innerBlock = AST.InnerBlock p $ AST.Block p [declaration, statement, incrementation]
   let while = AST.While p compare innerBlock
-  let outerBlock = AST.InnerBlock p $ AST.Block p [indexAssigment, sizeAssigment, while]
+  let outerBlock = AST.InnerBlock p $ AST.Block p [indexDeclaration, sizeDeclaration, while]
   transformStatement' outerBlock
 
 transformStatement' (AST.Expression _ expression) = do
