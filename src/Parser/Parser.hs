@@ -15,5 +15,5 @@ _parse string = pProgram (myLexer string)
 parse :: String -> Either CompilerError Program
 parse string =
   case _parse string of
-    Bad msg -> Left $ CompilerError (ParserError msg) NoPosition
-    Ok tree -> Right $ convert tree
+    Left msg -> Left $ CompilerError (ParserError msg) NoPosition
+    Right tree -> Right $ convert tree

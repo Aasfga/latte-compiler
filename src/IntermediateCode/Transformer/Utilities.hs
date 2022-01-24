@@ -16,6 +16,9 @@ import Debug.Trace
 -- 
 -- Global context functions
 --
+modifyClass :: Ident -> (C.ClassDefinition -> C.ClassDefinition) -> C.GlobalTransformer ()
+modifyClass ident fun = modify $ over C.classes (Map.update (Just . fun) ident)
+
 getClass :: Ident -> C.GlobalTransformer C.ClassDefinition
 getClass classIdent = do
   maybeClass <- Map.lookup classIdent . view C.classes <$> get
@@ -60,6 +63,11 @@ defineGlobalSymbols globalSymbols = do
   mapM_ newGlobalSymbol globalSymbols
   assertCorrectTypesInGlobalSymbols
 
+addClassMember :: Ident -> (Index, AST.ClassMember) -> C.GlobalTransformer ()
+addClassMember classIdent (index, AST.AttributeDefinition _ _type memberIdent) = do
+  modifyClass classIdent $ over C.attributes $ Map.insert memberIdent index
+  modifyClass classIdent $ over C.attributeTypes $ Map.insert memberIdent _type
+
 newGlobalSymbol :: AST.GlobalSymbol -> C.GlobalTransformer ()
 newGlobalSymbol (AST.Function _ retType ident args _) = do
   assertCanDefineFunction ident
@@ -71,6 +79,7 @@ newGlobalSymbol (AST.Class _ ident members) = do
   let constructorIdent = getConstructorIdent ident
   let constructor = Q.emptyFunctionDefinition constructorIdent returnType []
   modify $ over (C.quadruples . Q.functions) (Map.insert ident constructor)
+  mapM_ (addClassMember ident) $ zip [0..] members
 -- 
 -- Function context functions
 --

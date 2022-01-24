@@ -121,6 +121,12 @@ copyReplace all@(Q.QuadrupleOperation register operation) = case operation of
     firstDefinition <- getFirstDefinition location
     modify $ over C.assigments (Map.insert register firstDefinition)
     return Nothing
+  (Q.PointerStore first second third) -> do
+    newFirst <- getFirstDefinition first
+    newSecond <- getFirstDefinition second
+    newThird <- getFirstDefinition third
+    return $ Just $ Q.QuadrupleOperation register $ Q.PointerStore newFirst newSecond newThird
+  (Q.PointerGet first second) -> Just <$> replaceBinaryConstructor Q.PointerGet register first second
   (Q.IntegerAdd first second) -> Just <$> replaceBinaryConstructor Q.IntegerAdd register first second
   (Q.IntegerSub first second) -> Just <$> replaceBinaryConstructor Q.IntegerSub register first second
   (Q.IntegerMul first second) -> Just <$> replaceBinaryConstructor Q.IntegerMul register first second
@@ -261,6 +267,8 @@ saveOperationInDominator blockNumber operation = do
 isGcseReplaceble :: Q.QuadrupleOperation -> Bool
 isGcseReplaceble (Q.ArgumentInit _) = False
 isGcseReplaceble (Q.Assigment _) = False
+isGcseReplaceble (Q.PointerStore _ _ _) = False
+isGcseReplaceble (Q.PointerGet _ _) = False
 isGcseReplaceble (Q.ReturnValue _) = False
 isGcseReplaceble (Q.ReturnVoid) = False
 isGcseReplaceble (Q.CallFunction "debugGcsePrintInt" _) = True

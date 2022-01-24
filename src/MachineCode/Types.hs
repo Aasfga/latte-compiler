@@ -29,6 +29,7 @@ data ValueLocation
   | R13
   | R14
   | R15
+  | PointerOffset ValueLocation ValueLocation Index
   | FrameOffset Index
   | LabeledMemory Label
   | Number Int
@@ -57,6 +58,8 @@ instance Show ValueLocation where
   show R13 = "r13"
   show R14 = "r14"
   show R15 = "r15"
+  show (PointerOffset base offset scale) 
+    = "[" ++ show base ++ " + " ++ show offset ++ " * " ++ show scale ++ "]" 
   show (FrameOffset index)
     | index < 0 = "[rbp - " ++ show (abs index) ++ "]"
     | otherwise = "[rbp + " ++ show index ++ "]"

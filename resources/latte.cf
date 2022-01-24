@@ -56,7 +56,6 @@ Attribute.             LValue ::= Expr7 "." Ident ;
 
 -- Expressions
 
-Cast.                   Expr7 ::= "(" Type ")" Expr ;
 LValue.                 Expr7 ::= LValue ;
 LitInt.                 Expr7 ::= Integer ;
 LitTrue.                Expr7 ::= "true" ;
@@ -64,6 +63,7 @@ LitFalse.               Expr7 ::= "false" ;
 LitNull.                Expr7 ::= "null" ;
 App.                    Expr7 ::= Ident "(" [Expr] ")" ;
 String.                 Expr7 ::= String ;
+Cast.                   Expr6 ::= "(" Type ")" Expr ;
 NewObject.              Expr6 ::= "new" Type ;
 NewArray.               Expr6 ::= "new" Type "[" Expr "]" ;
 Neg.                    Expr5 ::= "-" Expr6 ;

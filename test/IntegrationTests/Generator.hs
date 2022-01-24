@@ -22,6 +22,10 @@ type Directory = (String, TestType)
 directories :: [Directory]
 directories = [
   ("core", Good),
+  ("gcse", Good),
+  ("booleans", Good),
+  ("arrays", Good),
+  ("struct", Good),
   ("core_bad", Bad)
   ]
 

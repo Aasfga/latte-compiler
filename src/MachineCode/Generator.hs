@@ -37,6 +37,16 @@ generateQuadrupleOperation tmpRegister (Q.ArgumentInit index) = do
 generateQuadrupleOperation tmpRegister (Q.Assigment location) = do
   loadValue location RAX
   saveValue tmpRegister RAX
+generateQuadrupleOperation tmpRegister (Q.PointerStore pointer index value) = do
+  loadValue pointer RAX
+  loadValue index RCX
+  loadValue value RDX
+  lift $ emitMOV (PointerOffset RAX RCX 8) RDX
+generateQuadrupleOperation tmpRegister (Q.PointerGet pointer index) = do
+  loadValue pointer RAX
+  loadValue index RCX
+  lift $ emitMOV RDX (PointerOffset RAX RCX 8)
+  saveValue tmpRegister RDX
 generateQuadrupleOperation tmpRegister (Q.IntegerAdd first second) = do 
   loadValue first RAX
   loadValue second RCX

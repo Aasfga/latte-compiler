@@ -2,7 +2,7 @@ int main()
 {
   if(giveFalse() && ouch())
   {
-    printString("Ouch, again!);
+    printString("Ouch, again!");
   }
   else
   {
