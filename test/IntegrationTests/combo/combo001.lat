@@ -1,0 +1,35 @@
+class container
+{
+  int z;
+  int[] values;
+  int x;
+}
+
+container make_container(int z, int x, int size)
+{
+  container c = new container;
+  c.z = z;
+  c.x = x;
+  c.values = new int[size];
+  int i = 0;
+  while(i < c.values.length)
+  {
+    c.values[i] = z + x + i + 1;
+    i++;
+  }
+
+  return c;
+}
+
+int main()
+{
+  container c = make_container(0, 1, 3);
+  printInt(c.z);
+  printInt(c.x);
+  for(int x : c.values)
+  {
+    printInt(x);
+  }
+
+  return 0;
+}

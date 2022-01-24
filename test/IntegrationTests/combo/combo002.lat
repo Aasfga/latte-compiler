@@ -1,0 +1,43 @@
+class firstContainer
+{
+  secondContainer second;
+}
+
+class secondContainer 
+{
+  thirdContainer third;
+}
+
+class thirdContainer
+{
+  string[] array;
+}
+
+firstContainer makeContainers(int size)
+{
+  firstContainer first = new firstContainer;
+  first.second = new secondContainer;
+  first.second.third = new thirdContainer;
+  first.second.third.array = new string[size];
+
+  int i = 0;
+  while(i < first.second.third.array.length)
+  {
+    first.second.third.array[i] = "a";
+    i++;
+  }
+
+  return first;
+}
+
+int main()
+{
+  firstContainer first = makeContainers(5);
+
+  for(string x : first.second.third.array)
+  {
+    printString(x);
+  }
+
+  return 0;
+}

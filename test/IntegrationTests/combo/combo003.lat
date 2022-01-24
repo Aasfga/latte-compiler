@@ -1,0 +1,21 @@
+class container {
+  int value;
+}
+
+
+int main()
+{
+  container[] array = new container[5];
+  int i = 0;
+  while(i < array.length)
+  {
+    array[i] = new container;
+    array[i].value = i;
+    i++;
+  }
+  for(int c : array)
+  {
+    printInt(c.value);
+  }
+  return 0;
+}
