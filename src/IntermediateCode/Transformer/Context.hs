@@ -2,7 +2,6 @@
 module IntermediateCode.Transformer.Context where
 
 import qualified Data.Map as Map
-import qualified Data.Bimap as Bimap
 import Control.Monad.State
 import Errors
 import Types

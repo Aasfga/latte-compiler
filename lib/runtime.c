@@ -38,7 +38,7 @@ extern int readInt()
 	return a;
 }
 
-extern __createObject(integer size) 
+extern void* __createObject(integer size) 
 {
 	return calloc(size, sizeof(integer));
 }

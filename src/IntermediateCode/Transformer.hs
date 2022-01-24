@@ -272,7 +272,7 @@ transformStatement' (AST.ForEach _ _type ident expression statement) = do
   let indexDeclaration = AST.Declaration p Int [AST.Init p indexIdent $ AST.DummyInt 0]
   let attribute = AST.LValue p $ AST.Attribute p expression "length"
   let sizeDeclaration = AST.Declaration p Int [AST.Init p sizeIdent $ attribute]
-  let compare = AST.Compare p (AST.LValue p indexVariable) LE (AST.LValue p sizeVariable)
+  let compare = AST.Compare p (AST.LValue p indexVariable) LTH (AST.LValue p sizeVariable)
   let getItemExpression = AST.LValue p $ AST.ArrayAccess p expression (AST.LValue p indexVariable)
   let declaration = AST.Declaration p _type [AST.Init p ident getItemExpression]
   let incrementation = AST.Increment p indexVariable
@@ -357,7 +357,7 @@ transformGlobalSymbolToQuadruples (AST.Class _ ident members) = do
   let returnType = Object ident
   let code = constructorCode $ length members
   let block = Q.Block 0 Map.empty Set.empty Map.empty [] [] True code True Q.Return
-  let constructor = Q.FunctionDefinition constructorIdent returnType [] 3 (Map.singleton 0 block)
+  let constructor = Q.FunctionDefinition constructorIdent returnType [] 4 (Map.singleton 0 block)
   modify $ over (C.quadruples . Q.functions) (Map.insert constructorIdent constructor)
 
 transformProgram :: AST.Program -> C.GlobalTransformer Q.Quadruples

@@ -31,7 +31,6 @@ dependencies:
 - containers
 - transformers
 - microlens-platform
-- bimap
 
 library:
   source-dirs: src

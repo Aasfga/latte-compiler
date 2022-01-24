@@ -122,7 +122,8 @@ pointerStore :: Q.QuadrupleLocation -> Q.QuadrupleLocation -> Q.QuadrupleLocatio
 pointerStore pointer index value = do
   assertLocationType index Int
   let operation = Q.PointerStore pointer index value
-  void $ addQuadrupleOperation operation Void
+  addQuadrupleOperation operation Void
+  return ()
 
 pointerGet :: Q.QuadrupleLocation -> Q.QuadrupleLocation -> Type -> C.FunctionTransformer Q.QuadrupleLocation
 pointerGet pointer index _type = do

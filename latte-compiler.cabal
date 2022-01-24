@@ -58,7 +58,6 @@ library
   build-depends:
       array >=0.5 && <6
     , base >=4.7 && <5
-    , bimap
     , containers
     , filepath
     , microlens-platform
@@ -81,7 +80,6 @@ executable latte
   build-depends:
       array >=0.5 && <6
     , base >=4.7 && <5
-    , bimap
     , containers
     , filepath
     , latte-compiler
@@ -108,7 +106,6 @@ test-suite latte-test
   build-depends:
       array >=0.5 && <6
     , base >=4.7 && <5
-    , bimap
     , containers
     , filepath
     , latte-compiler

@@ -369,7 +369,7 @@ assertFinalBlocksHaveReturn = do
 assertIsCorrectType :: Type -> C.GlobalTransformer ()
 assertIsCorrectType (Object ident) = do
   isDefined <- Map.member ident . view C.classes <$> get
-  unless (traceShowId isDefined) $ throwErrorGlobal $ SymbolNotFound ident
+  unless (isDefined) $ throwErrorGlobal $ SymbolNotFound ident
 assertIsCorrectType _ = return ()
 
 assertCorrectTypesInFunction :: Q.FunctionDefinition -> C.GlobalTransformer ()
@@ -429,6 +429,6 @@ getConstructorIdent ident = "__constructor_" ++ ident
 
 constructorCode :: Int -> [Q.Quadruple]
 constructorCode size = [
-    Q.QuadrupleOperation 0 $ Q.CallFunction "__createObject" [Q.ConstInt size],
-    Q.QuadrupleOperation 1 $ Q.ReturnValue $ Q.Register 0
+    Q.QuadrupleOperation 1 $ Q.CallFunction "__createObject" [Q.ConstInt size],
+    Q.QuadrupleOperation 2 $ Q.ReturnValue $ Q.Register 1
   ]

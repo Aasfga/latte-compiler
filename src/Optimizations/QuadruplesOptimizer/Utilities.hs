@@ -336,13 +336,18 @@ removeRedundantQuadruple all@(Q.QuadrupleOperation register operation) = case op
     return $ Just all
   (Q.ReturnVoid) -> return $ Just all
   (Q.ReturnValue location) -> do
-    let newRegisters = Set.fromList $ catMaybes $ map Q.getRegister [location]
-    modify $ over C.liveRegisters $ Set.union newRegisters
+    let registers = Set.fromList $ catMaybes $ map Q.getRegister [location]
+    modify $ over C.liveRegisters $ Set.union registers
     return $ Just all
   (Q.CallFunction _ locations) -> do
-    let newRegisters = Set.fromList $ catMaybes $ map Q.getRegister locations
+    let registers = Set.fromList $ catMaybes $ map Q.getRegister locations
     modify $ over C.liveRegisters $ Set.delete register
-    modify $ over C.liveRegisters $ Set.union newRegisters
+    modify $ over C.liveRegisters $ Set.union registers 
+    return $ Just all
+  (Q.PointerStore pointer index value) -> do
+    let registers = Set.fromList $ catMaybes $ map Q.getRegister [pointer, index, value]
+    modify $ over C.liveRegisters $ Set.delete register
+    modify $ over C.liveRegisters $ Set.union registers
     return $ Just all
   otherwise -> do
       liveRegisters <- view C.liveRegisters <$> get
